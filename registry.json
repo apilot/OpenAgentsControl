@@ -579,7 +579,7 @@
         "name": "Test New Command",
         "type": "command",
         "path": ".opencode/command/test-new-command.md",
-        "description": "Test command to verify auto-detection and registry updates work correctly\\\"",
+        "description": "Test command to verify auto-detection and registry updates work correctly",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -589,7 +589,7 @@
         "name": "Commit OpenAgents Control",
         "type": "command",
         "path": ".opencode/command/commit-openagents.md",
-        "description": "description: Smart commit command for opencode-agents repository with automatic validation and conventional commits",
+        "description": "Smart commit command for opencode-agents repository with automatic validation and conventional commits",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -599,7 +599,7 @@
         "name": "Prompt Optimizer",
         "type": "command",
         "path": ".opencode/command/prompt-engineering/prompt-optimizer.md",
-        "description": "Advanced prompt optimizer: Research patterns + token efficiency + semantic preservation. Achieves 30-50% token reduction with 100% meaning preserved.\\\"",
+        "description": "Advanced prompt optimizer: Research patterns + token efficiency + semantic preservation. Achieves 30-50% token reduction with 100% meaning preserved.",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -609,7 +609,7 @@
         "name": "Create Tests",
         "type": "command",
         "path": ".opencode/command/openagents/new-agents/create-tests.md",
-        "description": "description: \\\"Generate comprehensive test suites for OpenCode agents with 8 essential test types\\\"",
+        "description": "Generate comprehensive test suites for OpenCode agents with 8 essential test types",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -619,7 +619,7 @@
         "name": "Create Agent",
         "type": "command",
         "path": ".opencode/command/openagents/new-agents/create-agent.md",
-        "description": "description: \\\"Create new OpenCode agents following research-backed best practices (Anthropic 2025)\\\"",
+        "description": "Create new OpenCode agents following research-backed best practices (Anthropic 2025)",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -650,6 +650,7 @@
           "patterns",
           "refactoring"
         ],
+        "dependencies": [],
         "category": "standard"
       }
     ],
@@ -1256,7 +1257,7 @@
         "category": "standard"
       },
       {
-        "id": "agents",
+        "id": "plugin-agents",
         "name": "Agents",
         "type": "context",
         "path": ".opencode/context/openagents-repo/plugins/context/capabilities/agents.md",
@@ -2173,6 +2174,7 @@
           "development",
           "patterns"
         ],
+        "dependencies": [],
         "category": "standard"
       },
       {
@@ -2185,6 +2187,7 @@
           "learning",
           "guide"
         ],
+        "dependencies": [],
         "category": "standard"
       },
       {
@@ -2197,6 +2200,7 @@
           "product",
           "guide"
         ],
+        "dependencies": [],
         "category": "standard"
       },
       {
@@ -2209,10 +2213,11 @@
           "data",
           "guide"
         ],
+        "dependencies": [],
         "category": "standard"
       },
       {
-        "id": "context-bundle-template",
+        "id": "context-bundle-template-alt",
         "name": "Context Bundle Template",
         "type": "context",
         "path": ".opencode/context/openagents-repo/templates/context-bundle-template.md",
@@ -2222,6 +2227,7 @@
           "context",
           "bundle"
         ],
+        "dependencies": [],
         "category": "standard"
       },
       {
@@ -2238,7 +2244,6 @@
           "dependencies"
         ],
         "dependencies": [
-          "context:external-libraries-workflow",
           "context:adding-agent-basics",
           "context:adding-skill-basics"
         ],
@@ -2453,7 +2458,7 @@
         "category": "navigation"
       },
       {
-        "id": "ui-navigation",
+        "id": "ui-nav-patterns",
         "name": "Navigation: UI",
         "type": "context",
         "path": ".opencode/context/ui/navigation.md",
@@ -2692,10 +2697,11 @@
         "name": "Agent Metadata",
         "type": "context",
         "path": ".opencode/context/openagents-repo/core-concepts/agent-metadata.md",
-        "description": "...\\\"               # \u2705 Valid OpenCode field",
+        "description": "Centralized metadata schema for OpenAgents Control agents — registry management, documentation, and tooling",
         "tags": [
-          "development",
-          "coding"
+          "metadata",
+          "registry",
+          "agents"
         ],
         "dependencies": [],
         "category": "standard"
@@ -3156,6 +3162,20 @@
         ],
         "dependencies": [],
         "category": "essential"
+      },
+      {
+        "id": "agent-metadata-config",
+        "name": "Agent Metadata Configuration",
+        "type": "config",
+        "path": ".opencode/config/agent-metadata.json",
+        "description": "Centralized metadata for OpenAgents Control agents — used for registry management, installation, and documentation",
+        "tags": [
+          "config",
+          "metadata",
+          "agents"
+        ],
+        "dependencies": [],
+        "category": "essential"
       }
     ]
   },
@@ -3188,7 +3208,7 @@
         "context:system-context-guide",
         "context:adding-skill-basics",
         "config:env-example",
-        "config:agent-metadata"
+        "config:agent-metadata-config"
       ]
     },
     "developer": {
@@ -3236,7 +3256,8 @@
         "config:env-example",
         "config:agent-metadata",
         "config:readme",
-        "context:openagents-repo/*"
+        "context:openagents-repo/*",
+        "config:agent-metadata-config"
       ]
     },
     "business": {
@@ -3266,8 +3287,8 @@
         "context:project-intelligence/*",
         "context:adding-skill-basics",
         "config:env-example",
-        "config:agent-metadata",
-        "config:readme"
+        "config:readme",
+        "config:agent-metadata-config"
       ]
     },
     "full": {
@@ -3323,7 +3344,8 @@
         "config:env-example",
         "config:agent-metadata",
         "config:readme",
-        "context:openagents-repo/*"
+        "context:openagents-repo/*",
+        "config:agent-metadata-config"
       ]
     },
     "advanced": {
@@ -3396,8 +3418,8 @@
         "context:frontmatter",
         "context:codebase-references",
         "config:env-example",
-        "config:agent-metadata",
-        "config:readme"
+        "config:readme",
+        "config:agent-metadata-config"
       ],
       "additionalPaths": [
         ".Building/",
@@ -3407,7 +3429,7 @@
   },
   "metadata": {
     "lastUpdated": "2026-03-21",
-    "schemaVersion": "1.0.0"
+    "schemaVersion": "2.0.0"
   },
   "subagents": {
     "test": {
