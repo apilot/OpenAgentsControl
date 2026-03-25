@@ -367,8 +367,12 @@ get_install_path() {
     local registry_path=$1
     # Strip leading .opencode/ if present
     local relative_path="${registry_path#.opencode/}"
-    # Return INSTALL_DIR + relative path
-    echo "${INSTALL_DIR}/${relative_path}"
+    # If path didn't start with .opencode/, it's a root-relative path (e.g. env.example, README.md)
+    if [ "$relative_path" = "$registry_path" ]; then
+        echo "./${registry_path}"
+    else
+        echo "${INSTALL_DIR}/${relative_path}"
+    fi
 }
 
 expand_context_wildcard() {
@@ -819,15 +823,14 @@ show_component_selection() {
     local all_components=()
     local component_details=()
     
+    local idx=1
     for category in "${categories[@]}"; do
         local cat_display
         cat_display=$(echo "$category" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
         echo -e "${CYAN}${BOLD}${cat_display}:${NC}"
-        
+
         local components
         components=$(jq_exec ".components.${category}[]? | .id" "$TEMP_DIR/registry.json")
-        
-        local idx=1
         while IFS= read -r comp_id; do
             local comp_name
             comp_name=$(jq_exec ".components.${category}[]? | select(.id == \"${comp_id}\") | .name" "$TEMP_DIR/registry.json")
