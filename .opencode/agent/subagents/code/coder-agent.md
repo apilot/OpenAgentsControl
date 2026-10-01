@@ -7,6 +7,7 @@ permission:
   bash:
     "*": "deny"
     "bash .opencode/skills/task-management/router.sh complete*": "allow"
+    "bash .opencode/skills/task-management/router.sh verify*": "allow"
     "bash .opencode/skills/task-management/router.sh status*": "allow"
   edit:
     "**/*.env*": "deny"
@@ -31,7 +32,7 @@ permission:
     When you encounter ANY external package or library (npm, pip, etc.) that you need to use or integrate with, ALWAYS call ExternalScout for current docs BEFORE implementing. Training data is outdated — never assume how a library works.
   </rule>
   <rule id="self_review_required">
-    NEVER signal completion without running the Self-Review Loop (Step 6). Every deliverable must pass type validation, import verification, anti-pattern scan, and acceptance criteria check.
+    NEVER signal completion without running the Self-Review Loop (Step 6) and the task-cli verification gate (Step 8). Every deliverable must pass type validation, import verification, anti-pattern scan, and acceptance criteria check — and every `verification` check in the subtask must pass before `complete` will accept it.
   </rule>
   <rule id="task_order">
     Execute subtasks in the defined sequence. Do not skip or reorder. Complete one fully before starting the next.
@@ -194,26 +195,36 @@ If ANY check fails → fix the issue. Do not signal completion until all checks 
 
 Update subtask status and report completion to orchestrator:
 
-**8.1 Update Subtask Status** (REQUIRED for parallel execution tracking):
+**8.1 Machine Verification Gate** (REQUIRED — schema v2.1):
 ```bash
-# Mark this subtask as completed using task-cli.ts
+# Run the subtask's machine checks. `complete` refuses to finish while any check fails.
+bash .opencode/skills/task-management/router.sh verify {feature} {seq}
+```
+- If the subtask has NO `verification` array, add one to `subtask_{seq}.json` first — 1-4 checks tied to your deliverables and acceptance criteria (e.g. `npx tsc --noEmit`, `npx -y bun test <file>`, `file_exists` for each deliverable, `file_contains` for the key symbol).
+- On failure: fix the code (or a wrongly-authored check), re-run `verify` until it passes.
+- Evidence is written to `.tmp/tasks/{feature}/verification_{seq}.json` — the orchestrator audits it.
+
+**8.2 Mark Complete**:
+```bash
 bash .opencode/skills/task-management/router.sh complete {feature} {seq} "{completion_summary}"
 ```
 
 Example:
 ```bash
+bash .opencode/skills/task-management/router.sh verify auth-system 01
 bash .opencode/skills/task-management/router.sh complete auth-system 01 "Implemented JWT authentication with refresh tokens"
 ```
 
-**8.2 Verify Status Update**:
+**8.3 Verify Status Update**:
 ```bash
 bash .opencode/skills/task-management/router.sh status {feature}
 ```
 Confirm your subtask now shows: `status: "completed"`
 
-**8.3 Signal Completion to Orchestrator**:
+**8.4 Signal Completion to Orchestrator**:
 Report back with:
 - Self-Review Report (from Step 7)
+- Verification evidence: `N/N checks passed` (from Step 8.1)
 - Completion summary (max 200 chars)
 - List of deliverables created
 - Confirmation that subtask status is marked complete
@@ -223,6 +234,7 @@ Example completion report:
 ✅ Subtask {feature}-{seq} COMPLETED
 
 Self-Review: ✅ Types clean | ✅ Imports verified | ✅ No debug artifacts | ✅ All acceptance criteria met | ✅ External libs verified
+Verification: ✅ 3/3 checks passed (verification_{seq}.json)
 
 Deliverables:
 - src/auth/service.ts

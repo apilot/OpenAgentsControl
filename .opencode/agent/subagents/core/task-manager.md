@@ -6,7 +6,7 @@ temperature: 0.1
 permission:
   bash:
     "*": "deny"
-    "npx ts-node*task-cli*": "allow"
+    "bash .opencode/skills/task-management/router.sh*": "allow"
     "mkdir -p .tmp/tasks*": "allow"
     "mv .tmp/tasks*": "allow"
   edit:
@@ -85,7 +85,7 @@ WHY THIS MATTERS:
 
         2. Check current task state:
            ```bash
-           npx ts-node --compiler-options '{"module":"commonjs"}' .opencode/skills/task-management/scripts/task-cli.ts status
+           bash .opencode/skills/task-management/router.sh status
            ```
 
         3. If context bundle provided, load and extract:
@@ -236,11 +236,25 @@ WHY THIS MATTERS:
                 "vertical_slice": "{optional: feature slice this subtask belongs to}",
                 "contracts": ["{optional: contracts this subtask implements or depends on}"],
                 "design_components": ["{optional: design artifacts relevant to this subtask}"],
-                "related_adrs": ["{optional: ADRs relevant to this subtask}"]
+                "related_adrs": ["{optional: ADRs relevant to this subtask}"],
+                "verification": [
+                  {"type": "command", "command": "{machine gate, e.g. npx tsc --noEmit}", "expect_exit": 0},
+                  {"type": "file_exists", "path": "{primary deliverable path}"},
+                  {"type": "file_contains", "path": "{key file}", "expect_contains": "{signature or symbol}"}
+                ]
               }
               ```
   
               **RULE**: `context_files` = standards/conventions ONLY. `reference_files` = project source files ONLY. Never mix them.
+  
+              **VERIFICATION BLOCKS (schema v2.1 — REQUIRED for implementation subtasks)**:
+             Every subtask MUST ship a machine-executable `verification` array so `task-cli.ts complete`
+             can prove completion (exit 1 otherwise). Author 1-4 checks tied to the deliverables:
+             - `command`: build/type/test gates the coder will run (e.g. `npx tsc --noEmit`, `npx -y bun test <file>`)
+             - `file_exists`: primary deliverable paths
+             - `file_contains`: the key symbol/signature that must appear in a deliverable
+             Keep checks fast and deterministic. Evidence lands in `verification_{seq}.json`;
+             `next`/`blocked`/`parallel` gating inherits only these verified completions.
   
               **LINE-NUMBER PRECISION** (Enhanced Schema):
               For large files (>100 lines), use line-number precision to reduce cognitive load:
@@ -279,7 +293,7 @@ WHY THIS MATTERS:
  
          4. Validate with CLI:
            ```bash
-           npx ts-node --compiler-options '{"module":"commonjs"}' .opencode/skills/task-management/scripts/task-cli.ts validate {feature}
+           bash .opencode/skills/task-management/router.sh validate {feature}
            ```
 
         5. Report creation:
@@ -308,7 +322,7 @@ WHY THIS MATTERS:
 
         3. If all criteria pass:
            ```bash
-           npx ts-node --compiler-options '{"module":"commonjs"}' .opencode/skills/task-management/scripts/task-cli.ts complete {feature} {seq} "{summary}"
+           bash .opencode/skills/task-management/router.sh complete {feature} {seq} "{summary}"
            ```
 
         4. If criteria fail:
@@ -318,7 +332,7 @@ WHY THIS MATTERS:
 
         5. Check for next task:
            ```bash
-           npx ts-node --compiler-options '{"module":"commonjs"}' .opencode/skills/task-management/scripts/task-cli.ts next {feature}
+           bash .opencode/skills/task-management/router.sh next {feature}
            ```
       </process>
       <checkpoint>Task verified and status updated</checkpoint>
@@ -330,7 +344,7 @@ WHY THIS MATTERS:
       <process>
         1. Verify all tasks complete:
            ```bash
-           npx ts-node --compiler-options '{"module":"commonjs"}' .opencode/skills/task-management/scripts/task-cli.ts status {feature}
+           bash .opencode/skills/task-management/router.sh status {feature}
            ```
 
         2. If completed_count == subtask_count:

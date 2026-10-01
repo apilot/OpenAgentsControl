@@ -11,7 +11,7 @@
 ## Usage
 
 ```bash
-npx ts-node .opencode/context/tasks/scripts/task-cli.ts <command> [args]
+bash .opencode/skills/task-management/router.sh <command> [args]
 ```
 
 Task files are stored in `.tmp/tasks/` at the project root.

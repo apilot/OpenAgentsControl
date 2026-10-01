@@ -6,7 +6,6 @@ temperature: 0.1
 permission:
   bash:
     "*": "deny"
-    "npx ts-node*task-cli*": "allow"
     "bash .opencode/skills/task-management/router.sh*": "allow"
   edit:
     "**/*.env*": "deny"
@@ -184,6 +183,7 @@ Expected output:
 
 **Verify**:
 - All batch subtasks show `status: "completed"`
+- Each completed subtask with a `verification` block has fresh evidence: `.tmp/tasks/{feature}/verification_{seq}.json` with `"passed": true`
 - No failures or errors reported
 - Deliverables exist (if specified)
 
@@ -260,11 +260,12 @@ If CoderAgent reports completion but status doesn't show completed:
 
 1. **Retry status check** (could be timing issue)
 2. **Check if CoderAgent actually ran task-cli.ts complete**
-3. **Manually mark complete** if needed:
+3. **If complete was refused by the verification gate** (output shows `Verification failed`): do NOT retry manually — return the subtask to CoderAgent with the failing check details from `verification_{seq}.json`
+4. **Manually mark complete** ONLY for legacy subtasks without a `verification` block (the gate blocks gated tasks); include the discrepancy in the batch report:
    ```bash
    bash .opencode/skills/task-management/router.sh complete {feature} {seq} "{summary}"
    ```
-4. **Report discrepancy** to orchestrator
+5. **Report discrepancy** to orchestrator
 
 ---
 
@@ -377,6 +378,7 @@ Orchestrator proceeds to Task 03
 - **Parallel first**: Execute simultaneously unless there's a reason not to
 - **Batch atomicity**: Entire batch must complete before proceeding
 - **Status verification**: Always confirm with task-cli.ts, don't trust signals alone
+- **Evidence verification**: a `completed` status counts when `verification_{seq}.json` shows `passed: true`; subtasks completed without verification evidence are flagged in the batch report
 - **Clear reporting**: Orchestrator needs complete batch status, not individual task noise
 - **Fail fast**: Report failures immediately, don't wait for entire batch if one fails
 
@@ -386,6 +388,6 @@ Orchestrator proceeds to Task 03
 
 - Verify parallel safety before execution (no inter-dependencies)
 - Confirm all CoderAgents mark their subtasks complete
-- Validate batch completion with task-cli.ts status
+- Validate batch completion with task-cli.ts status plus per-subtask verification evidence (`verification_{seq}.json`)
 - Report comprehensive batch status to orchestrator
 - Handle failures gracefully with clear error details
