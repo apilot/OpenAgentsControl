@@ -1,6 +1,7 @@
 # OpenAgents Control Roadmap
 
 > **Interactive Board:** [GitHub Project - OpenAgents Control Roadmap & Tasks](https://github.com/users/darrenhinde/projects/2)
+> **Fork status (2026-10):** upstream darrenhinde/OpenAgentsControl is effectively unmaintained. Active development happens in this fork.
 
 This roadmap tracks the evolution of OpenAgents Control - an AI agent framework for plan-first development workflows with approval-based execution.
 
@@ -10,10 +11,16 @@ This roadmap tracks the evolution of OpenAgents Control - an AI agent framework 
 
 **Priority items for the next 4-6 weeks:**
 
-- [ ] Stabilize OpenCode CLI integration
-- [ ] Improve evaluation framework reliability asd
+- [x] Stabilize OpenCode CLI integration
+- [x] Improve evaluation framework reliability
+- [ ] **Phase 1 — evidence-based task completion**: machine-verified `verify` step in task-cli (command/file checks, fresh reports), `complete` gated on fresh verify, dependency graph computed from verified completions only
+- [ ] **Phase 2 — opencode v2 enforcement plugin**: port plugin-abilities entry points to the v2 plugin API (`Plugin.define`, `ctx.tool.hook("execute.before")`, `ctx.permission.rules`, `ctx.storage`); eliminate ability entry-point bypass
 - [ ] Enhance documentation for new users
 - [ ] Add more example workflows
+
+**Phase 0 — fork stabilization (completed 2026-10-01):** cherry-picked upstream PR fixes #296 (plugin-abilities hardening + plugin.json registration), #354 (wildcard permission denies as fallbacks), #311 (eval default model), #358 (installer bash 3.2 compat), #297 (custom install failures + agent-metadata); surgical port of #359's intent (registry data quality + linter with tests). Validation: tsc clean, bun test 89/89 + 16/16 registry linter tests, bash -n, installer smoke tests.
+
+Key architectural finding: **V1 plugin implementations do not run in OpenCode v2.** All existing plugins (plugin-abilities, agent-validator, coder-verification) require porting to the v2 plugin API. Agent/command/skill markdown files and `.opencode/` configs remain compatible.
 
 ---
 
@@ -21,7 +28,7 @@ This roadmap tracks the evolution of OpenAgents Control - an AI agent framework 
 
 **Planned for the following 6-8 weeks:**
 
-- [ ] Support for additional AI coding tools (Cursor, Claude Code)
+- [ ] Support for additional AI coding tools (Cursor, Claude Code, pi.dev/OpenClaw adapters)
 - [ ] Enhanced context-aware system builder
 - [ ] Multi-language template improvements
 - [ ] Community contribution guidelines
@@ -34,7 +41,7 @@ This roadmap tracks the evolution of OpenAgents Control - an AI agent framework 
 
 - [ ] Visual workflow designer
 - [ ] Agent marketplace/registry
-- [ ] Cloud-based agent coordination
+- [ ] Cloud-based agent coordination (GNAP git-native coordination, #273)
 - [ ] Integration with popular IDEs
 
 ---
@@ -81,5 +88,5 @@ gh issue view 123 --repo darrenhinde/OpenAgentsControl
 
 ---
 
-**Last Updated:** December 4, 2025
+**Last Updated:** October 1, 2026
 
