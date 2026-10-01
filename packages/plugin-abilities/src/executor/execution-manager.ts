@@ -44,7 +44,7 @@ export class ExecutionManager {
       startedAt: Date.now(),
     }
 
-    const execution = await executeAbility(ability, inputs, ctx, this.abortController.signal)
+    const execution = await executeAbility(ability, inputs, this.withProgressMirroring(ctx), this.abortController.signal)
     this.activeExecution = execution
 
     // Track in history
@@ -59,6 +59,35 @@ export class ExecutionManager {
     }
 
     return execution
+  }
+
+  /**
+   * Mirror live step progress onto the placeholder activeExecution.
+   *
+   * The executor mutates its own execution object and only assigns it here
+   * AFTER the run finishes. Without this mirroring, getActive() reports
+   * currentStep=null and completedSteps=[] for the whole run — which silently
+   * disabled the v1 enforcement hooks (they gate on currentStep) and the
+   * ability context injection.
+   */
+  private withProgressMirroring(ctx: ExecutorContext): ExecutorContext {
+    return {
+      ...ctx,
+      onStepStart: step => {
+        const active = this.activeExecution
+        if (active && active.status === 'running') active.currentStep = step
+        ctx.onStepStart?.(step)
+      },
+      onStepComplete: (step, result) => {
+        const active = this.activeExecution
+        if (active && active.status === 'running' && active.currentStep?.id === step.id) {
+          active.completedSteps.push(result)
+          active.pendingSteps = active.pendingSteps.filter(s => s.id !== step.id)
+        }
+        ctx.onStepComplete?.(step, result)
+      },
+      onStepFail: (step, error) => ctx.onStepFail?.(step, error),
+    }
   }
 
   get(id: string): AbilityExecution | undefined {

@@ -221,8 +221,30 @@ describe('Integration: ExecutionManager', () => {
     expect(execution.completedSteps.map((s) => s.stepId)).toEqual(['slow'])
   })
 
-  it('should expose execution history via get()', async () => {
+  it('should expose live step progress on the active execution (v1 silent-enforcement regression)', async () => {
     const ability: Ability = {
+      name: 'progress-test',
+      description: 'Progress test',
+      steps: [
+        { id: 'slow', type: 'script', run: 'sleep 0.4' },
+        { id: 'after', type: 'script', run: 'echo after', needs: ['slow'] },
+      ],
+    }
+
+    const promise = manager.execute(ability, {}, createMockContext())
+
+    // During the first (slow) step the live reference carries the step and
+    // empty progress — this is what the enforcement hooks gate on.
+    expect(manager.getActive()!.status).toBe('running')
+    expect(manager.getActive()!.currentStep?.id).toBe('slow')
+    expect(manager.getActive()!.completedSteps.length).toBe(0)
+
+    const execution = await promise
+    expect(execution.status).toBe('completed')
+    expect(execution.completedSteps.map((s) => s.stepId)).toEqual(['slow', 'after'])
+  })
+
+  it('should expose execution history via get()', async () => {    const ability: Ability = {
       name: 'get-history-test',
       description: 'Get history test',
       steps: [{ id: 'step1', type: 'script', run: 'echo test' }],
