@@ -447,7 +447,7 @@ async function executeStep(
       return executeWorkflowStep(step, execution, ctx)
     default:
       return {
-        stepId: step.id,
+        stepId: (step as { id: string }).id,
         status: 'failed',
         error: `Unknown step type: ${(step as { type: string }).type}`,
         startedAt: Date.now(),

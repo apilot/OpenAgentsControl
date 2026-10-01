@@ -190,6 +190,50 @@ describe('Integration: ExecutionManager', () => {
     expect(cancelled).toBe(false)
   })
 
+  it('should cancel a running execution by id', async () => {
+    const ability: Ability = {
+      name: 'cancel-running-test',
+      description: 'Cancel running test',
+      steps: [
+        { id: 'slow', type: 'script', run: 'sleep 0.5' },
+        { id: 'after', type: 'script', run: 'echo after', needs: ['slow'] },
+      ],
+    }
+
+    const promise = manager.execute(ability, {}, createMockContext())
+
+    const active = manager.getActive()
+    expect(active).not.toBeNull()
+    expect(active!.status).toBe('running')
+
+    // Wrong id must not cancel the active execution
+    expect(manager.cancel('exec_does_not_exist')).toBe(false)
+    expect(manager.getActive()!.status).toBe('running')
+
+    // Correct id cancels the active execution; abort is honored before the next step
+    expect(manager.cancel(active!.id)).toBe(true)
+
+    const execution = await promise
+    expect(execution.status).toBe('failed')
+    expect(execution.error).toBe('Cancelled')
+    expect(manager.getActive()).toBeNull()
+    // The step already running at cancel time completes; the next one never starts
+    expect(execution.completedSteps.map((s) => s.stepId)).toEqual(['slow'])
+  })
+
+  it('should expose execution history via get()', async () => {
+    const ability: Ability = {
+      name: 'get-history-test',
+      description: 'Get history test',
+      steps: [{ id: 'step1', type: 'script', run: 'echo test' }],
+    }
+
+    const execution = await manager.execute(ability, {}, createMockContext())
+
+    expect(manager.get(execution.id)?.status).toBe('completed')
+    expect(manager.get('exec_missing')).toBeUndefined()
+  })
+
   it('should cleanup old executions', async () => {
     const ability: Ability = {
       name: 'cleanup-test',

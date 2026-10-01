@@ -119,7 +119,7 @@ export interface Ability {
 // EXECUTION TYPES
 // ─────────────────────────────────────────────────────────────
 
-export type ExecutionStatus = 'running' | 'completed' | 'failed'
+export type ExecutionStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 export type StepStatus = 'completed' | 'failed' | 'skipped'
 
 export interface StepResult {

@@ -73,7 +73,8 @@ export class ExecutionManager {
     return this.activeExecution
   }
 
-  cancel(): boolean {
+  cancel(executionId?: string): boolean {
+    if (executionId && this.activeExecution?.id !== executionId) return false
     if (!this.activeExecution) return false
 
     if (this.activeExecution.status === 'running') {
