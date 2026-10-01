@@ -931,7 +931,7 @@
         "name": "Orchestrator Template",
         "type": "context",
         "path": ".opencode/context/system-builder-templates/orchestrator-template.md",
-        "description": "{domain} orchestrator for {primary_purpose}\\\"",
+        "description": "{domain} orchestrator for {primary_purpose}",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -941,7 +941,7 @@
         "name": "Subagent Template",
         "type": "context",
         "path": ".opencode/context/system-builder-templates/subagent-template.md",
-        "description": "{specific_task_description}\\\"",
+        "description": "{specific_task_description}",
         "tags": [],
         "dependencies": [],
         "category": "standard"
@@ -3412,7 +3412,6 @@
         "context:subagent-template",
         "context:openagents-repo/*",
         "context:context-system",
-        "context:context-system/*",
         "context:registry-dependencies",
         "context:templates",
         "context:frontmatter",
