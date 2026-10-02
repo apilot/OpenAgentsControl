@@ -106,7 +106,13 @@ export async function setupAbilitiesV2(deps: V2PluginDeps): Promise<void> {
     console.log('[abilities] Could not load abilities:', err instanceof Error ? err.message : err)
   }
 
-  const createExecutorContext = (): ExecutorContext => ({ cwd: deps.directory, env: {} })
+  const createExecutorContext = (): ExecutorContext => ({
+    cwd: deps.directory,
+    env: {},
+    // Open the enforcement window (and its mirror) the moment a step starts,
+    // not only at the next tool call.
+    onStepStart: () => { void mirrorState().catch(() => {}) },
+  })
 
   // ── Crash recovery ─────────────────────────────────────────
   // A 'running' mirror can only come from a previous process; this process
@@ -129,29 +135,42 @@ export async function setupAbilitiesV2(deps: V2PluginDeps): Promise<void> {
   // ── Lazy storage mirror ────────────────────────────────────
   // The in-process manager is the live truth; storage is only the durable
   // mirror used for crash recovery. Mirror failures never gate decisions.
-  let mirrorSig = 'idle'
-  const mirrorState = async (): Promise<void> => {
+  // Mirror writes are serialized through a chain; the applied signature is
+  // recorded only AFTER a successful write so a failed write is retried on
+  // the next hook call instead of being skipped (#7).
+  let mirrorApplied: string | undefined
+  let mirrorQueued: string | undefined
+  let mirrorChain: Promise<void> = Promise.resolve()
+  const mirrorState = (): Promise<void> => {
     const execution = manager.getActive()
     const running = execution !== null && execution.status === 'running' && execution.currentStep !== null
     const sig = running && execution ? `${execution.ability.name}:${execution.currentStep!.id}` : 'idle'
-    if (sig === mirrorSig) return
-    mirrorSig = sig
-    try {
-      if (running && execution && execution.currentStep) {
-        const stored: StoredExecution = {
-          status: 'running',
-          ability: execution.ability.name,
-          stepId: execution.currentStep.id,
-          stepType: execution.currentStep.type,
-          startedAt: new Date(execution.startedAt).toISOString(),
+    if (sig === mirrorQueued || sig === mirrorApplied) return mirrorChain
+    mirrorQueued = sig
+    mirrorChain = mirrorChain.then(async () => {
+      try {
+        if (running && execution && execution.currentStep) {
+          const stored: StoredExecution = {
+            status: 'running',
+            ability: execution.ability.name,
+            stepId: execution.currentStep.id,
+            stepType: execution.currentStep.type,
+            startedAt: new Date(execution.startedAt).toISOString(),
+          }
+          await deps.storage.set(STORAGE_KEY, stored)
+        } else {
+          await deps.storage.remove(STORAGE_KEY)
         }
-        await deps.storage.set(STORAGE_KEY, stored)
-      } else {
-        await deps.storage.remove(STORAGE_KEY)
+        mirrorApplied = sig
+      } catch (err) {
+        // Mirror is advisory: log and keep serving from the in-process state.
+        // The queued signature is cleared so the next hook call retries.
+        console.error('[abilities] storage mirror failed:', err)
+      } finally {
+        if (mirrorQueued === sig) mirrorQueued = undefined
       }
-    } catch (err) {
-      console.error('[abilities] storage mirror failed:', err)
-    }
+    })
+    return mirrorChain
   }
 
   const currentState = (): EnforcementState => {
@@ -331,28 +350,55 @@ export function createAbilitiesPluginV2(): ReturnType<typeof Plugin.define> {
     id: PLUGIN_ID,
     setup(context) {
       // The opencode v2 preview CLI ships a Context without the enforcement
-      // domains. Degrade loudly (fail-open, plugin idle) instead of crashing
-      // on a missing `context.location`.
-      if (!isEnforcementCapableContext(context)) {
+      // domains. Degrade per domain (#5): the tool hook is the enforcement
+      // core — without it the plugin is idle. Permission/session/storage are
+      // independent layers; each missing one degrades only its own feature.
+      const anyCtx = context as unknown as Record<string, any>
+      const directory: unknown = anyCtx?.location?.directory
+      const canTool = isFn(anyCtx?.tool?.hook) && isFn(anyCtx?.tool?.transform)
+      const canPermission = isFn(anyCtx?.permission?.hook)
+      const canSession = isFn(anyCtx?.session?.hook)
+      const canStorage = isFn(anyCtx?.storage?.get) && isFn(anyCtx?.storage?.set)
+
+      if (typeof directory !== 'string' || directory.length === 0 || !canTool) {
         console.error(
-          '[abilities] opencode host does not expose the v2 enforcement domains (tool/permission/session/storage). ' +
-            'This is expected on the v2 preview CLI — abilities enforcement is DISABLED here and the plugin stays idle. ' +
+          '[abilities] opencode host does not expose the v2 tool/transform domain' +
+            (typeof directory === 'string' ? '' : ' or a project directory') +
+            '. This is expected on the v2 preview CLI — abilities enforcement is DISABLED here and the plugin stays idle. ' +
             'Upgrade opencode once these domains ship.',
         )
         return undefined
       }
+      if (!canPermission) {
+        console.error('[abilities] permission domain unavailable — the deny layer is OFF; tool-hook layer stays active')
+      }
+      if (!canSession) {
+        console.error('[abilities] session domain unavailable — the ENFORCEMENT ACTIVE notice is OFF')
+      }
+      const storage = canStorage
+        ? context.storage
+        : {
+            // Crash recovery + mirror need durable storage; without it they are
+            // skipped (advisory), while tool/permission enforcement still runs.
+            get: async () => undefined,
+            set: async () => { console.error('[abilities] storage domain unavailable — crash recovery is OFF') },
+            remove: async () => {},
+          }
+      if (!canStorage) {
+        console.error('[abilities] storage domain unavailable — state mirror and crash recovery are OFF')
+      }
       return setupAbilitiesV2({
-        directory: context.location.directory,
-        options: context.options ?? {},
-        storage: context.storage,
+        directory,
+        options: anyCtx.options ?? {},
+        storage,
         registerToolHook: callback => {
-          void context.tool.hook('execute.before', callback)
+          void anyCtx.tool.hook('execute.before', callback)
         },
         registerPermissionHook: callback => {
-          void context.permission.hook('evaluate', callback)
+          if (canPermission) void anyCtx.permission.hook('evaluate', callback)
         },
         registerSessionContextHook: callback => {
-          void context.session.hook('context', callback)
+          if (canSession) void anyCtx.session.hook('context', callback)
         },
         registerTools: register => {
           void context.tool.transform(editor => {

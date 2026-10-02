@@ -364,3 +364,90 @@ describe('preview-Context graceful degradation', () => {
     expect(warning).toContain('preview')
   })
 })
+
+describe('review hardening (#5, #7, M4)', () => {
+  it('degrades per domain: a tool-only host still enforces via layer 1 (#5)', async () => {
+    const root = await makeFixtureDir()
+    const toolHooks: Array<(input: { tool: string }) => Promise<void> | void> = []
+    const tools = new Map<string, AbilityToolRegistration>()
+
+    // Preview-like host: location + tool only. permission/session/storage absent.
+    const context = {
+      location: { directory: root },
+      options: {},
+      tool: {
+        hook: (_name: string, cb: (input: { tool: string }) => Promise<void> | void) => {
+          toolHooks.push(cb)
+          return Promise.resolve({ dispose() {} })
+        },
+        transform: (cb: (editor: { add: (tool: AbilityToolRegistration) => void }) => void) => {
+          cb({ add: tool => tools.set(tool.name, tool) })
+          return Promise.resolve({ dispose() {} })
+        },
+      },
+    }
+
+    const { createAbilitiesPluginV2 } = await import('../src/v2-plugin.ts')
+    const errors: string[] = []
+    const originalError = console.error
+    console.error = (message?: unknown) => { errors.push(String(message)) }
+    try {
+      const plugin = createAbilitiesPluginV2()
+      await plugin.setup(context as never)
+    } finally {
+      console.error = originalError
+    }
+
+    expect(errors.join('\n')).toContain('permission domain unavailable')
+    expect(errors.join('\n')).toContain('storage domain unavailable')
+    expect(toolHooks.length).toBe(1)
+    expect(Array.from(tools.keys()).sort()).toEqual([
+      'ability.cancel', 'ability.list', 'ability.run', 'ability.status',
+    ])
+
+    // Layer 1 keeps working even without the other domains.
+    const run = tools.get('ability.run')!.execute({ name: 'slow-demo' })
+    await expect(toolHooks[0]!({ tool: 'bash' })).rejects.toBeInstanceOf(EnforcementDenialError)
+    const execution = JSON.parse((await run).content)
+    expect(execution.status).toBe('completed')
+  })
+
+  it('retries a failed mirror write on the next hook call (#7)', async () => {
+    const root = await makeFixtureDir()
+    const harness = createHarness(root)
+    let failWrites = true
+    const realSet = harness.deps.storage.set.bind(harness.deps.storage)
+    harness.deps.storage.set = async (key, value) => {
+      if (failWrites) throw new Error('disk full')
+      return realSet(key, value)
+    }
+    await setupAbilitiesV2(harness.deps)
+
+    const toolHook = harness.toolHooks[0]!
+    const run = harness.tools.get('ability.run')!.execute({ name: 'slow-demo' })
+
+    await toolHook({ tool: 'read' }) // mirror attempt fails (read stays allowed)
+    expect(harness.storage.get(STORAGE_KEY)).toBeUndefined()
+
+    failWrites = false
+    await toolHook({ tool: 'read' }) // same signature — must retry, not skip
+    const mirror = harness.storage.get(STORAGE_KEY) as Record<string, unknown>
+    expect(mirror.status).toBe('running')
+
+    await run
+  })
+
+  it('mirrors state on step start even before any tool call (M4)', async () => {
+    const root = await makeFixtureDir()
+    const harness = createHarness(root)
+    await setupAbilitiesV2(harness.deps)
+
+    const run = harness.tools.get('ability.run')!.execute({ name: 'slow-demo' })
+    await new Promise(resolve => setTimeout(resolve, 150))
+    const mirror = harness.storage.get(STORAGE_KEY) as Record<string, unknown>
+    expect(mirror?.status).toBe('running')
+    expect(mirror?.ability).toBe('slow-demo')
+
+    await run
+  })
+})
