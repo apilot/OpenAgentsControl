@@ -72,6 +72,15 @@ describe.skipIf(skipIntegration)('ServerManager Integration', () => {
     
     expect(server.running()).toBe(false);
   });
+
+  it('should reject exactly once when the server does not start in time', async () => {
+    // Regression: the timeout callback must mark the start as resolved
+    // BEFORE stopping the process; otherwise the induced 'exit' event
+    // re-rejects and bun reports an unhandled rejection (exit code 130).
+    const short = new ServerManager({ timeout: 300 });
+    await expect(short.start()).rejects.toThrow(/failed to start within 300ms/i);
+    expect(short.running()).toBe(false);
+  });
 });
 
 // Unit tests that don't require a running server
