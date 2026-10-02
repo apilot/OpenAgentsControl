@@ -133,15 +133,58 @@ describe("stage-cli evidence gate", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("prose-only outputs pass with zero artifact checks (stage 6)", () => {
+  it("prose-only outputs complete with a loud zero-check warning (stage 6)", () => {
     const root = makeFixture();
     expect(runCli(root, ["init", "demo"]).status).toBe(0);
     writeTracking(root, "demo", { completedUpTo: 5, current: 6 });
 
     const proc = runCli(root, ["complete", "demo", "6"]);
     expect(proc.status).toBe(0);
-    expect(proc.stdout).toContain("Evidence gate passed (0 artifact check(s))");
+    expect(proc.stdout).toContain("Evidence gate: 0 machine-checkable outputs");
+    expect(proc.stdout).toContain("NOT evidence-backed");
     expect(status(root, "demo", 6)).toBe("completed");
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("rejects invalid feature names (path-safety)", () => {
+    const root = makeFixture();
+    for (const bad of ["../evil", "Foo", "has space", "a/b"]) {
+      const proc = runCli(root, ["status", bad]);
+      expect(proc.status).toBe(1);
+      expect(proc.stdout).toContain("Invalid feature name");
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("session lookup is exact-match (feature 'test' must not hit 'my-test')", () => {
+    const root = makeFixture();
+    // A session dir belonging to a different feature that ENDS WITH '-test'.
+    const other = path.join(root, ".tmp/sessions/2026-01-01-my-test");
+    fs.mkdirSync(other, { recursive: true });
+    fs.writeFileSync(
+      path.join(other, "stage-tracking.json"),
+      JSON.stringify({ feature: "my-test", workflow_status: "in_progress", current_stage: 1, stages: [] }),
+    );
+
+    const proc = runCli(root, ["status", "test"]);
+    expect(proc.status).toBe(1);
+    expect(proc.stdout).toContain("No stage tracking found for feature: test");
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("resume refuses when prerequisites of the target stage are not completed", () => {
+    const root = makeFixture();
+    expect(runCli(root, ["init", "demo"]).status).toBe(0);
+    // Abort the workflow, then try to resume at stage 3 while stages 1-2 are pending.
+    writeTracking(root, "demo", { completedUpTo: 0, current: 3 });
+    const tp = trackingPath(root, "demo");
+    const t = JSON.parse(fs.readFileSync(tp, "utf-8"));
+    t.workflow_status = "aborted";
+    fs.writeFileSync(tp, JSON.stringify(t, null, 2));
+
+    const proc = runCli(root, ["resume", "demo", "3"]);
+    expect(proc.status).toBe(1);
+    expect(proc.stdout).toContain("prerequisites not completed: 2");
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

@@ -35,6 +35,16 @@ function findProjectRoot(): string {
 const PROJECT_ROOT = findProjectRoot();
 const SESSIONS_DIR = path.join(PROJECT_ROOT, '.tmp', 'sessions');
 
+// Feature names become directory suffixes and path fragments — keep them strict.
+const FEATURE_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+function assertFeature(feature: string): void {
+  if (!FEATURE_RE.test(feature)) {
+    console.log(`❌ Invalid feature name: '${feature}' (allowed: lowercase letters, digits, '-'; must start with a letter or digit)`);
+    process.exit(1);
+  }
+}
+
 // Stage definitions
 const STAGES = [
   {
@@ -179,8 +189,11 @@ function getSessionDir(feature: string): string | null {
     return null;
   }
   
+  // Exact match: '<date>-<feature>' — 'test' must not match '2026-01-01-my-test'.
   const sessions = fs.readdirSync(SESSIONS_DIR)
-    .filter((dir: string) => dir.endsWith(`-${feature}`))
+    .map((dir: string) => ({ dir, match: dir.match(/^\d{4}-\d{2}-\d{2}-(.+)$/) }))
+    .filter(({ match }: { match: RegExpMatchArray | null }) => !!match && match[1] === feature)
+    .map(({ dir }: { dir: string }) => dir)
     .sort()
     .reverse();
   
@@ -459,7 +472,12 @@ function completeCommand(feature: string, stageId: number): void {
     console.log(`\n   Create the artifacts (project root or the feature session dir), then re-run complete.`);
     process.exit(1);
   }
-  console.log(`✅ Evidence gate passed (${checked} artifact check(s))`);
+  if (checked === 0) {
+    console.log(`⚠️  Evidence gate: 0 machine-checkable outputs for stage ${stageId} — completion is NOT evidence-backed.`);
+    console.log(`   Add path-like entries to stage.outputs (files/globs) to make this stage verifiable.`);
+  } else {
+    console.log(`✅ Evidence gate passed (${checked} artifact check(s))`);
+  }
   
   // Mark stage as completed
   stageStatus.status = 'completed';
@@ -592,6 +610,16 @@ function resumeCommand(feature: string, stageId: number): void {
     process.exit(1);
   }
   
+  // Resume must not skip completed prerequisites.
+  const prerequisitesFailed = stage.prerequisites.filter(prereqId => {
+    const prereqStatus = tracking.stages.find(s => s.id === prereqId);
+    return !prereqStatus || prereqStatus.status !== 'completed';
+  });
+  if (prerequisitesFailed.length > 0) {
+    console.log(`❌ Cannot resume at stage ${stageId} - prerequisites not completed: ${prerequisitesFailed.join(', ')}`);
+    process.exit(1);
+  }
+  
   tracking.workflow_status = 'active';
   tracking.current_stage = stageId;
   
@@ -654,6 +682,9 @@ Examples:
   if (!feature && command !== 'help') {
     console.log(`❌ Feature name required`);
     process.exit(1);
+  }
+  if (feature) {
+    assertFeature(feature);
   }
   
   switch (command) {
