@@ -12,8 +12,10 @@ import { TimelineBuilder } from '../timeline-builder.js';
 import { SessionReader } from '../session-reader.js';
 import type { MessageWithParts, Part, Message } from '../../types/index.js';
 
-// Mock SessionReader
-vi.mock('../session-reader.js');
+// Note: no path-only vi.mock here — bun's test runner does not support
+// auto-mocking by module path. Each test spies on the SessionReader
+// instance directly (getMessagesWithParts), which is sufficient because
+// the constructor only stores options and performs no I/O.
 
 describe('TimelineBuilder', () => {
   let builder: TimelineBuilder;

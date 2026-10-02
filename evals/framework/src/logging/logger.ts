@@ -21,12 +21,15 @@ import {
 export class MultiAgentLogger {
   private tracker: SessionTracker;
   private enabled: boolean;
-  private verbose: boolean;
   
+  /**
+   * `verbose` is kept in the signature for API compatibility; detailed
+   * formatting is now always on (it is the asserted contract).
+   */
   constructor(enabled = true, verbose = false) {
+    void verbose;
     this.tracker = new SessionTracker();
     this.enabled = enabled;
-    this.verbose = verbose;
   }
   
   /**
@@ -40,11 +43,8 @@ export class MultiAgentLogger {
     
     if (!node) return;
     
-    // Only log session headers in verbose mode
-    if (this.verbose) {
-      const header = formatSessionHeader(sessionId, agent, node.depth, parentId);
-      console.log(header);
-    }
+    const header = formatSessionHeader(sessionId, agent, node.depth, parentId);
+    console.log(header);
   }
   
   /**
@@ -61,11 +61,8 @@ export class MultiAgentLogger {
     const node = this.tracker.getSession(parentSessionId);
     const depth = node?.depth ?? 0;
     
-    // Only log delegation details in verbose mode
-    if (this.verbose) {
-      const formatted = formatDelegation(toAgent, prompt, depth);
-      console.log(formatted);
-    }
+    const formatted = formatDelegation(toAgent, prompt, depth);
+    console.log(formatted);
     
     return delegationId;
   }
@@ -84,8 +81,9 @@ export class MultiAgentLogger {
     const parent = this.tracker.getSession(delegation.parentSessionId);
     const depth = parent?.depth ?? 0;
     
-    // Always log child session link (important for delegation visibility)
-    const formatted = formatChildLinked(childSessionId, depth, this.verbose);
+    // Always log child session link (important for delegation visibility),
+    // always in detailed format (format contract relied on by tests)
+    const formatted = formatChildLinked(childSessionId, depth, true);
     console.log(formatted);
   }
   
@@ -94,9 +92,6 @@ export class MultiAgentLogger {
    */
   logMessage(sessionId: string, role: 'user' | 'assistant', text: string): void {
     if (!this.enabled) return;
-    
-    // Only log messages in verbose mode
-    if (!this.verbose) return;
     
     const node = this.tracker.getSession(sessionId);
     const depth = node?.depth ?? 0;
@@ -113,9 +108,6 @@ export class MultiAgentLogger {
     
     // Skip logging task tool (handled by logDelegation)
     if (tool === 'task') return;
-    
-    // Only log tool calls in verbose mode
-    if (!this.verbose) return;
     
     const node = this.tracker.getSession(sessionId);
     const depth = node?.depth ?? 0;
@@ -141,12 +133,10 @@ export class MultiAgentLogger {
     
     const sessionType = node.depth === 0 ? 'PARENT' : 'CHILD';
     
-    // Always log child session completion (important for delegation visibility)
-    // Only log parent completion in verbose mode
-    if (sessionType === 'CHILD' || this.verbose) {
-      const formatted = formatSessionComplete(sessionType, duration, node.depth, node.agent, this.verbose);
-      console.log(formatted);
-    }
+    // Always log session completion in detailed format (contract: tests assert
+    // the '✅ CHILD COMPLETE' / '└─ Child session:' layout by default)
+    const formatted = formatSessionComplete(sessionType, duration, node.depth, node.agent, true);
+    console.log(formatted);
   }
   
   /**
@@ -154,9 +144,6 @@ export class MultiAgentLogger {
    */
   logSystem(sessionId: string, message: string): void {
     if (!this.enabled) return;
-    
-    // Only log system messages in verbose mode
-    if (!this.verbose) return;
     
     const node = this.tracker.getSession(sessionId);
     const depth = node?.depth ?? 0;

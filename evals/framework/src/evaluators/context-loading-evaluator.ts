@@ -214,7 +214,8 @@ export class ContextLoadingEvaluator extends BaseEvaluator {
 
       return this.buildResult(this.name, checks, violations, evidence, {
         isTaskSession: false,
-        executionToolCount: 0
+        executionToolCount: 0,
+        skipped: true
       });
     }
 

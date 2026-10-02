@@ -146,6 +146,10 @@ export class ServerManager {
 
       const timeout = setTimeout(() => {
         if (!resolved) {
+          // Mark resolved BEFORE stopping: stop() triggers an 'exit' event,
+          // and without this flag the exit handler would issue a second
+          // reject() (unhandled rejection, exit code 130).
+          resolved = true;
           this.stop();
           reject(new Error(`Server failed to start within ${this.config.timeout || 5000}ms`));
         }
@@ -160,8 +164,9 @@ export class ServerManager {
           console.log('[Server STDOUT]:', data.toString().trim());
         }
         
-        // Look for "opencode server listening on http://..."
-        const match = stdout.match(/opencode server listening on (http:\/\/[^\s]+)/);
+        // Look for "opencode server listening on http://..." (v1) or
+        // "server listening on http://..." (v2) — pattern covers both.
+        const match = stdout.match(/server listening on (http:\/\/[^\s]+)/);
         if (match && !resolved) {
           resolved = true;
           clearTimeout(timeout);
@@ -183,8 +188,8 @@ export class ServerManager {
           console.log('[Server STDERR]:', data.toString().trim());
         }
         
-        // Also check stderr for the startup message
-        const match = stderr.match(/opencode server listening on (http:\/\/[^\s]+)/);
+        // Also check stderr for the startup message (v1/v2 patterns)
+        const match = stderr.match(/server listening on (http:\/\/[^\s]+)/);
         if (match && !resolved) {
           resolved = true;
           clearTimeout(timeout);

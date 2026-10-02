@@ -13,7 +13,20 @@ import { TestRunner } from '../test-runner.js';
 import type { TestCase } from '../test-case-schema.js';
 
 // Skip integration tests if SKIP_INTEGRATION is set or in CI
-const skipIntegration = process.env.SKIP_INTEGRATION === 'true' || process.env.CI === 'true';
+import { spawnSync } from 'node:child_process';
+
+// Integration tests shell out to the real `opencode` CLI. Skip when:
+// - SKIP_INTEGRATION=true or CI (explicit opt-out),
+// - the `opencode` binary is missing, or
+// - it is not the v1 API this framework's SDK targets (opencode v2 changed
+//   the server protocol). Skip reason documented per project rule.
+const oc = spawnSync('opencode', ['--version'], { encoding: 'utf8' });
+const ocVersion = `${oc.stdout || ''}${oc.stderr || ''}`.trim();
+const skipIntegration =
+  process.env.SKIP_INTEGRATION === 'true' ||
+  process.env.CI === 'true' ||
+  oc.status !== 0 ||
+  !/^v?1\./.test(ocVersion);
 
 describe.skipIf(skipIntegration)('TestRunner Integration', () => {
   let runner: TestRunner;

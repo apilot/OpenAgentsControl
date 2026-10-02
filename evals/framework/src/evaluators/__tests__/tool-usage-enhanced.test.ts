@@ -41,7 +41,7 @@ describe('ToolUsageEvaluator - Enhanced Features', () => {
       const result = await evaluator.evaluate(timeline, mockSessionInfo);
       
       expect(result.violations.length).toBeGreaterThan(0);
-      expect(result.violations[0].type).toBe('bash-antipattern-edit');
+      expect(result.violations[0].type).toBe('bash-antipattern');
       expect(result.violations[0].evidence.suggestedTool).toBe('edit');
     });
 
@@ -194,7 +194,7 @@ describe('ToolUsageEvaluator - Enhanced Features', () => {
       const result = await evaluator.evaluate(timeline, mockSessionInfo);
 
       expect(result.violations[0].severity).toBe('error');
-      expect(result.violations[0].type).toBe('bash-antipattern-read');
+      expect(result.violations[0].type).toBe('bash-antipattern');
       expect(result.passed).toBe(false);
     });
 
@@ -213,7 +213,7 @@ describe('ToolUsageEvaluator - Enhanced Features', () => {
       const result = await evaluator.evaluate(timeline, mockSessionInfo);
 
       expect(result.violations[0].severity).toBe('error');
-      expect(result.violations[0].type).toBe('bash-antipattern-list');
+      expect(result.violations[0].type).toBe('bash-antipattern');
       expect(result.passed).toBe(false);
     });
   });
@@ -287,7 +287,7 @@ describe('ToolUsageEvaluator - Enhanced Features', () => {
 
       expect(result.passed).toBe(false);
       expect(result.violations.length).toBeGreaterThan(0);
-      expect(result.violations[0].type).toBe('bash-antipattern-list');
+      expect(result.violations[0].type).toBe('bash-antipattern');
     });
 
     it('should allow echo to stdout (no redirection)', async () => {

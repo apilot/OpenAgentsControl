@@ -194,7 +194,8 @@ export class ToolUsageEvaluator extends BaseEvaluator {
         // Add violation with appropriate severity
         violations.push(
           this.createViolation(
-            `bash-antipattern-${antiPattern.tool}`,
+            // Contract: stable violation type for all bash antipatterns
+            'bash-antipattern',
             antiPattern.severity,
             antiPattern.message,
             bashCall.timestamp,
