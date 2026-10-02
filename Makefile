@@ -1,7 +1,7 @@
 # OpenAgents - GitHub Project Management & Development
 # Quick commands for managing your GitHub Project board and running tests
 
-REPO := darrenhinde/OpenAgents
+REPO := apilot/OpenAgentsControl
 PROJECT_NUMBER := 2
 OWNER := darrenhinde
 
