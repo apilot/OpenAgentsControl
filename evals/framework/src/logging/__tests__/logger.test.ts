@@ -170,20 +170,20 @@ describe('MultiAgentLogger', () => {
   });
   
   describe('logSessionComplete', () => {
-    it('logs PARENT completion for root session', () => {
+    it('logs PARENT completion for root session', async () => {
       logger.logSessionStart('session-1', 'openagent');
       consoleLogSpy.mockClear();
       
-      // Wait a bit to have measurable duration
-      setTimeout(() => {
-        logger.logSessionComplete('session-1');
-        
-        expect(consoleLogSpy).toHaveBeenCalled();
-        const output = consoleLogSpy.mock.calls[0][0];
-        expect(output).toContain('✅');
-        expect(output).toContain('PARENT COMPLETE');
-        expect(output).toMatch(/\d+\.\d+s/); // Duration in seconds
-      }, 10);
+      // Wait a bit to have measurable duration (awaited so assertions
+      // run inside the test — bun restores spies between tests)
+      await new Promise(resolve => setTimeout(resolve, 10));
+      logger.logSessionComplete('session-1');
+      
+      expect(consoleLogSpy).toHaveBeenCalled();
+      const output = consoleLogSpy.mock.calls[0][0];
+      expect(output).toContain('✅');
+      expect(output).toContain('PARENT COMPLETE');
+      expect(output).toMatch(/\d+\.\d+s/); // Duration in seconds
     });
     
     it('logs CHILD completion for child session', () => {
