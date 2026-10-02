@@ -48,6 +48,10 @@ fi
 # Configuration
 REPO_URL="https://github.com/darrenhinde/OpenAgentsControl"
 BRANCH="${OPENCODE_BRANCH:-main}"  # Allow override via environment variable
+if [[ ! "$BRANCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Error: OPENCODE_BRANCH contains invalid characters: $BRANCH" >&2
+    exit 1
+fi
 RAW_URL="https://raw.githubusercontent.com/darrenhinde/OpenAgentsControl/${BRANCH}"
 
 # Registry URL - supports local fallback for development
@@ -65,6 +69,7 @@ fi
 
 INSTALL_DIR="${OPENCODE_INSTALL_DIR:-.opencode}"  # Allow override via environment variable
 TEMP_DIR="$(mktemp -d /tmp/opencode-installer-XXXXXXXX 2>/dev/null || echo /tmp/opencode-installer-$$)"
+mkdir -p "$TEMP_DIR" 2>/dev/null || true
 
 # Cleanup temp directory on exit (success or failure)
 trap 'rm -rf "$TEMP_DIR" 2>/dev/null || true' EXIT
@@ -1187,8 +1192,11 @@ perform_installation() {
                     # Transform paths for global installation
                     if [[ "$INSTALL_DIR" != ".opencode" ]] && [[ "$INSTALL_DIR" != *"/.opencode" ]]; then
                         local expanded_path="${INSTALL_DIR/#\~/$HOME}"
-                        sed -i.bak -e "s|@\.opencode/context/|@${expanded_path}/context/|g" \
-                                   -e "s|\.opencode/context|${expanded_path}/context|g" "$dest" 2>/dev/null || true
+                        # Escape sed replacement metacharacters (& | \) in the user-controlled path.
+                        local escaped_path
+                        escaped_path=$(printf '%s' "$expanded_path" | sed -e 's/[&|\\]/\\&/g')
+                        sed -i.bak -e "s|@\.opencode/context/|@${escaped_path}/context/|g" \
+                                   -e "s|\.opencode/context|${escaped_path}/context|g" "$dest" 2>/dev/null || true
                         rm -f "${dest}.bak" 2>/dev/null || true
                     fi
                     component_installed=$((component_installed + 1))
@@ -1235,8 +1243,11 @@ perform_installation() {
                     # Expand tilde and get absolute path for transformation
                     local expanded_path="${INSTALL_DIR/#\~/$HOME}"
                     # Transform @.opencode/context/ references to actual install path
-                    sed -i.bak -e "s|@\.opencode/context/|@${expanded_path}/context/|g" \
-                               -e "s|\.opencode/context|${expanded_path}/context|g" "$dest" 2>/dev/null || true
+                    # Escape sed replacement metacharacters (& | \) in the user-controlled path.
+                    local escaped_path
+                    escaped_path=$(printf '%s' "$expanded_path" | sed -e 's/[&|\\]/\\&/g')
+                    sed -i.bak -e "s|@\.opencode/context/|@${escaped_path}/context/|g" \
+                               -e "s|\.opencode/context|${escaped_path}/context|g" "$dest" 2>/dev/null || true
                     rm -f "${dest}.bak" 2>/dev/null || true
                 fi
                 

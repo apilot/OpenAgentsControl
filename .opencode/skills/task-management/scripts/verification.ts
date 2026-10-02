@@ -72,7 +72,9 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
 const isRelativePath = (value: string): boolean =>
-  !path.isAbsolute(value) && !value.includes('..');
+  !path.isAbsolute(value) &&
+  !value.startsWith('~') &&
+  !value.split(/[\\/]/).includes('..');
 
 /** Returns a list of schema violations; empty list means the block is valid. */
 export function validateVerificationBlock(value: unknown): string[] {

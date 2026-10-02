@@ -117,7 +117,11 @@ export const AbilitiesPlugin: Plugin = async (ctx) => {
         if (err instanceof Error && err.message.startsWith('[abilities]')) {
           throw err
         }
-        console.error('[abilities] tool.execute.before error:', err)
+        // Fail closed: an internal enforcement error must not silently allow the call.
+        console.error('[abilities] tool.execute.before internal error:', err)
+        throw new Error(
+          `[abilities] enforcement error — tool '${input.tool}' blocked pending plugin recovery.`
+        )
       }
     },
 

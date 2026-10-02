@@ -263,12 +263,19 @@ else
 fi
 }
 
+mask_secrets() {
+  # Never let provider keys leak into the host-visible report (review #6).
+  sed -e "s|${ZAI_API_KEY:-NOP}|[REDACTED]|g" \
+      -e "s|${Z_AI_API_KEY:-NOP}|[REDACTED]|g" \
+      -e "s|${ZHIPU_API_KEY:-NOP}|[REDACTED]|g" "$REPORT"
+}
+
 if main > "$REPORT" 2>&1; then
-  cat "$REPORT"
+  mask_secrets
   echo "✅ E2E PASS (report: $REPORT)"
   exit 0
 else
-  cat "$REPORT"
+  mask_secrets
   echo "❌ E2E FAIL (report: $REPORT)"
   exit 1
 fi
