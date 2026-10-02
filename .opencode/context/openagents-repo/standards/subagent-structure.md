@@ -113,7 +113,7 @@ permissions:
 ```yaml
 tools: {read: true, bash: true}
 permissions:
-  bash: {"npx ts-node*task-cli*": "allow", "mkdir -p .tmp/tasks*": "allow", "*": "deny"}
+  bash: {"bash .opencode/skills/task-management/router.sh*": "allow", "mkdir -p .tmp/tasks*": "allow", "*": "deny"}
 ```
 
 ---

@@ -458,22 +458,22 @@ Use the provided migration script to automatically upgrade task files:
 
 ```bash
 # Migrate a single task
-npx ts-node .opencode/skill/task-management/scripts/migrate-schema.ts \
+npx -y bun run .opencode/skills/task-management/scripts/migrate-schema.ts \
   --task multi-stage-orchestration-workflow
 
 # Migrate all tasks
-npx ts-node .opencode/skill/task-management/scripts/migrate-schema.ts --all
+npx -y bun run .opencode/skills/task-management/scripts/migrate-schema.ts --all
 
 # Dry run (preview changes without writing)
-npx ts-node .opencode/skill/task-management/scripts/migrate-schema.ts \
+npx -y bun run .opencode/skills/task-management/scripts/migrate-schema.ts \
   --task auth-system --dry-run
 
 # Add line-number precision only
-npx ts-node .opencode/skill/task-management/scripts/migrate-schema.ts \
+npx -y bun run .opencode/skills/task-management/scripts/migrate-schema.ts \
   --task auth-system --lines-only
 
 # Add domain modeling fields
-npx ts-node .opencode/skill/task-management/scripts/migrate-schema.ts \
+npx -y bun run .opencode/skills/task-management/scripts/migrate-schema.ts \
   --task auth-system --add-domain \
   --bounded-context authentication \
   --module @app/auth
@@ -722,9 +722,9 @@ function loadContextFile(ref: string | ContextFileReference): string {
 **Commands**:
 ```bash
 # Works with both old and new formats
-npx ts-node .opencode/skill/task-management/scripts/task-cli.ts status
-npx ts-node .opencode/skill/task-management/scripts/task-cli.ts next auth-system
-npx ts-node .opencode/skill/task-management/scripts/task-cli.ts validate auth-system
+bash .opencode/skills/task-management/router.sh status
+bash .opencode/skills/task-management/router.sh next auth-system
+bash .opencode/skills/task-management/router.sh validate auth-system
 ```
 
 ### Orchestrator

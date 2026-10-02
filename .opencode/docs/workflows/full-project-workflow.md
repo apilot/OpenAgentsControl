@@ -1406,9 +1406,7 @@ task(
 
 **CLI Validation**:
 ```bash
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  validate order-management-mvp
+bash .opencode/skills/task-management/router.sh validate order-management-mvp
 
 # Output:
 # ✅ Task JSON valid
@@ -1779,9 +1777,7 @@ security:
 
 ```bash
 # Identify parallel batches
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  parallel order-management-mvp
+bash .opencode/skills/task-management/router.sh parallel order-management-mvp
 
 # Output:
 # Batch 1 (1 task): [01]
@@ -1905,9 +1901,7 @@ npx ts-node --compiler-options '{"module":"commonjs"}' \
 
 **Final Status**:
 ```bash
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  status order-management-mvp
+bash .opencode/skills/task-management/router.sh status order-management-mvp
 
 # Output:
 # [order-management-mvp] Order Management MVP
@@ -2232,23 +2226,17 @@ See: `.opencode/docs/workflows/full-project-workflow.md` (Stage 5)
 
 ```bash
 # Stage 4: Task Breakdown
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  validate order-management-mvp
+bash .opencode/skills/task-management/router.sh validate order-management-mvp
 
 # Stage 6: Parallel Execution
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  parallel order-management-mvp
+bash .opencode/skills/task-management/router.sh parallel order-management-mvp
 
 # Stage 6: Mark Task Complete (per task)
 bash .opencode/skill/task-management/router.sh complete \
   order-management-mvp 01 "Project structure and dependencies configured"
 
 # Stage 6: Check Status
-npx ts-node --compiler-options '{"module":"commonjs"}' \
-  .opencode/skill/task-management/scripts/task-cli.ts \
-  status order-management-mvp
+bash .opencode/skills/task-management/router.sh status order-management-mvp
 
 # Stage 7: Run Tests
 npm run test:integration

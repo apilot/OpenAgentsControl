@@ -52,7 +52,7 @@ function showHelp() {
   console.log(`
 {Skill Name}
 
-Usage: npx ts-node scripts/skill-cli.ts <command> [options]
+Usage: npx -y bun run scripts/skill-cli.ts <command> [options]
 
 Commands:
   command1    Description
@@ -114,7 +114,7 @@ bash .opencode/skills/{skill-name}/router.sh help
 bash .opencode/skills/{skill-name}/router.sh command1 --option value
 
 # Test with npx
-npx ts-node .opencode/skills/{skill-name}/scripts/skill-cli.ts help
+npx -y bun run .opencode/skills/{skill-name}/scripts/skill-cli.ts help
 ```
 
 ### Test OpenCode Integration

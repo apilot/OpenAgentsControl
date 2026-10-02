@@ -588,7 +588,7 @@ createContextIndex('auth-system', {
 ### Create Index
 
 ```bash
-npx ts-node context-index.ts create auth-system
+npx -y bun run context-index.ts create auth-system
 # ✅ Context index created for: auth-system
 #    Location: .tmp/context-index/auth-system.json
 ```
@@ -596,7 +596,7 @@ npx ts-node context-index.ts create auth-system
 ### Add Agent Output
 
 ```bash
-npx ts-node context-index.ts add-output \
+npx -y bun run context-index.ts add-output \
   auth-system \
   ArchitectureAnalyzer \
   .tmp/architecture/auth-system/contexts.json \
@@ -607,7 +607,7 @@ npx ts-node context-index.ts add-output \
 ### Get Context for Agent
 
 ```bash
-npx ts-node context-index.ts get-context auth-system StoryMapper
+npx -y bun run context-index.ts get-context auth-system StoryMapper
 # {
 #   "feature": "auth-system",
 #   "agentType": "StoryMapper",
@@ -620,7 +620,7 @@ npx ts-node context-index.ts get-context auth-system StoryMapper
 ### Show Full Index
 
 ```bash
-npx ts-node context-index.ts show auth-system
+npx -y bun run context-index.ts show auth-system
 # {
 #   "feature": "auth-system",
 #   "created": "2026-02-15T10:00:00Z",

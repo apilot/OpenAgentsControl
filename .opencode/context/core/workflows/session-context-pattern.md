@@ -567,13 +567,13 @@ console.log(
 
 ```bash
 # Create session
-npx ts-node session-context-manager.ts create auth-system "Implement JWT authentication"
+npx -y bun run session-context-manager.ts create auth-system "Implement JWT authentication"
 
 # Load session
-npx ts-node session-context-manager.ts load auth-system-2026-02-15T10-30-00-000Z
+npx -y bun run session-context-manager.ts load auth-system-2026-02-15T10-30-00-000Z
 
 # Show summary
-npx ts-node session-context-manager.ts summary auth-system-2026-02-15T10-30-00-000Z
+npx -y bun run session-context-manager.ts summary auth-system-2026-02-15T10-30-00-000Z
 ```
 
 ## Benefits

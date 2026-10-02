@@ -45,7 +45,7 @@ case "$1" in
         ;;
     *)
         # Route to TypeScript implementation
-        npx ts-node "$SCRIPT_DIR/scripts/skill-cli.ts" "$@"
+        npx -y bun run "$SCRIPT_DIR/scripts/skill-cli.ts" "$@"
         ;;
 esac
 ```

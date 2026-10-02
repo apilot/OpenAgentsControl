@@ -73,7 +73,7 @@ description: Brief description of what the skill provides
 ### Basic Commands
 
 ```bash
-npx ts-node .opencode/skills/{skill-name}/scripts/skill-cli.ts command1
+npx -y bun run .opencode/skills/{skill-name}/scripts/skill-cli.ts command1
 ```
 
 ### Command Reference
@@ -118,7 +118,7 @@ case "$COMMAND" in
         echo "Commands: command1, command2, help"
         ;;
     command1|command2)
-        npx ts-node "$SCRIPT_DIR/scripts/skill-cli.ts" "$COMMAND" "$@"
+        npx -y bun run "$SCRIPT_DIR/scripts/skill-cli.ts" "$COMMAND" "$@"
         ;;
     *)
         echo "Unknown command: $COMMAND"

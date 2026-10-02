@@ -65,16 +65,26 @@ find_project_root() {
 
 PROJECT_ROOT="$(find_project_root)"
 
+# Resolve a TypeScript runner. bun runs .ts natively; ts-node is a legacy
+# fallback (it fails on node >= 20 with ERR_UNKNOWN_FILE_EXTENSION).
+if command -v bun >/dev/null 2>&1; then
+  RUNNER=(bun run)
+elif command -v npx >/dev/null 2>&1; then
+  RUNNER=(npx -y bun run)
+else
+  RUNNER=(npx ts-node)
+fi
+
 # Route commands
 case "$1" in
   create|get-context|add-output|show)
-    cd "$PROJECT_ROOT" && npx ts-node "$SCRIPT_DIR/scripts/context-index.ts" "$@"
+    cd "$PROJECT_ROOT" && "${RUNNER[@]}" "$SCRIPT_DIR/scripts/context-index.ts" "$@"
     ;;
   session-create|session-load|session-summary)
-    cd "$PROJECT_ROOT" && npx ts-node "$SCRIPT_DIR/scripts/session-context-manager.ts" "$@"
+    cd "$PROJECT_ROOT" && "${RUNNER[@]}" "$SCRIPT_DIR/scripts/session-context-manager.ts" "$@"
     ;;
   stage-*)
-    cd "$PROJECT_ROOT" && npx ts-node "$SCRIPT_DIR/scripts/stage-cli.ts" "$@"
+    cd "$PROJECT_ROOT" && "${RUNNER[@]}" "$SCRIPT_DIR/scripts/stage-cli.ts" "$@"
     ;;
   *)
     echo "Unknown command: $1"

@@ -46,13 +46,13 @@ description: Task management CLI for tracking feature subtasks
 
 ```bash
 # Show all task statuses
-npx ts-node .opencode/skills/task-management/scripts/task-cli.ts status
+bash .opencode/skills/task-management/router.sh status
 
 # Show next eligible tasks
-npx ts-node .opencode/skills/task-management/scripts/task-cli.ts next
+bash .opencode/skills/task-management/router.sh next
 
 # Mark complete
-npx ts-node .opencode/skills/task-management/scripts/task-cli.ts complete <feature> <seq> "summary"
+bash .opencode/skills/task-management/router.sh complete <feature> <seq> "summary"
 ```
 ```
 
@@ -71,10 +71,10 @@ case "$1" in
         echo "Commands: status, next, blocked, complete, validate"
         ;;
     status|next|blocked|validate)
-        npx ts-node "$SCRIPT_DIR/scripts/task-cli.ts" "$@"
+        npx -y bun run "$SCRIPT_DIR/scripts/task-cli.ts" "$@"
         ;;
     complete)
-        npx ts-node "$SCRIPT_DIR/scripts/task-cli.ts" "$@"
+        npx -y bun run "$SCRIPT_DIR/scripts/task-cli.ts" "$@"
         ;;
     *)
         echo "Unknown command: $1"
