@@ -55,8 +55,8 @@ fi
 
 step "[3] repo-level suites: registry linter + task verification gate"
 cd /home/node/e2e/work/oac
-if bun test scripts/maintenance/validate-registry.test.ts .opencode/skill/task-management/tests/verification.test.ts 2>&1 | tail -4 | tee /tmp/suite2.txt; then
-  grep -qE ' 0 fail' /tmp/suite2.txt && pass "repo suites green (43)" || fail "repo suites have failures"
+if bun test scripts/maintenance/validate-registry.test.ts .opencode/skill/task-management/tests/verification.test.ts .opencode/skill/project-orchestration/tests/stage-cli.test.ts 2>&1 | tail -4 | tee /tmp/suite2.txt; then
+  grep -qE ' 0 fail' /tmp/suite2.txt && pass "repo suites green (55)" || fail "repo suites have failures"
 else
   fail "repo suites crashed"
 fi
@@ -136,8 +136,9 @@ python3 - <<'PY' > /tmp/t1-evidence.txt 2>&1
 import json
 
 bash_denial = None
-bash_ok     = False
-run_done    = False
+bash_during_window = False   # a bash call COMPLETED before the ability finished
+ability_run_end = None
+run_done = False
 final_text  = ""
 
 for line in open('/tmp/run-t1.log'):
@@ -151,19 +152,26 @@ for line in open('/tmp/run-t1.log'):
     part = obj.get('part') if isinstance(obj.get('part'), dict) else {}
     tool = part.get('tool')
     state = part.get('state') if isinstance(part.get('state'), dict) else {}
+    ts = (state.get('time') or {})
+    if obj.get('type') == 'tool_use' and tool == 'ability.run':
+        if state.get('status') == 'completed':
+            run_done = True
+            ability_run_end = ts.get('end', float('inf'))
     if obj.get('type') == 'tool_use' and tool == 'bash':
         if state.get('status') == 'error' and 'blocked during script step' in str(state.get('error', '')):
             bash_denial = str(state.get('error'))
         elif state.get('status') == 'completed':
-            bash_ok = True
-    if obj.get('type') == 'tool_use' and tool == 'ability.run':
-        if state.get('status') == 'completed':
-            run_done = True
+            # A post-completion retry is legitimate (the gate releases when the
+            # ability finishes); only a call finishing INSIDE the window is a bypass.
+            if ability_run_end is not None and (ts.get('end') or 0) <= ability_run_end:
+                bash_during_window = True
+            elif ability_run_end is None:
+                bash_during_window = True  # ability not even tracked — treat as bypass
     if obj.get('type') == 'text':
         final_text += obj.get('text', '')
 
 print(f"bash_denial={bash_denial!r}")
-print(f"bash_completed={bash_ok}")
+print(f"bash_during_window={bash_during_window}")
 print(f"ability_run_completed={run_done}")
 print(f"final_mentions_completed={'completed' in final_text.lower()}")
 PY
@@ -184,7 +192,10 @@ if [ -n "${bash_denial:-}" ]; then
 else
   fail "T1: no bash denial observed"
 fi
-[ "${bash_completed:-False}" = "True" ] && fail "T1: bash BYPASSED the gate (completed)!"
+[ "${bash_during_window:-False}" = "True" ] && fail "T1: bash BYPASSED the gate during the script step!"
+if [ "${bash_during_window:-True}" = "False" ] && grep -q "bypass-attempt-777" /tmp/run-t1.log; then
+  pass "T1: post-completion bash retry allowed (gate releases after the ability — correct A1 semantics)"
+fi
 
 if grep -q "Step 2/2: done" /tmp/run-t1.log; then
   pass "T1: ability ran to completion (step 2/2 executed after the blocked bypass)"
