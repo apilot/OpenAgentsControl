@@ -330,6 +330,17 @@ export function createAbilitiesPluginV2(): ReturnType<typeof Plugin.define> {
   return Plugin.define({
     id: PLUGIN_ID,
     setup(context) {
+      // The opencode v2 preview CLI ships a Context without the enforcement
+      // domains. Degrade loudly (fail-open, plugin idle) instead of crashing
+      // on a missing `context.location`.
+      if (!isEnforcementCapableContext(context)) {
+        console.error(
+          '[abilities] opencode host does not expose the v2 enforcement domains (tool/permission/session/storage). ' +
+            'This is expected on the v2 preview CLI — abilities enforcement is DISABLED here and the plugin stays idle. ' +
+            'Upgrade opencode once these domains ship.',
+        )
+        return undefined
+      }
       return setupAbilitiesV2({
         directory: context.location.directory,
         options: context.options ?? {},
@@ -356,3 +367,41 @@ export function createAbilitiesPluginV2(): ReturnType<typeof Plugin.define> {
 }
 
 export default createAbilitiesPluginV2()
+
+// Capability probe
+
+interface EnforcementContextShape {
+  location?: { directory?: unknown }
+  tool?: { hook?: unknown; transform?: unknown }
+  permission?: { hook?: unknown }
+  session?: { hook?: unknown }
+  storage?: { get?: unknown; set?: unknown }
+  options?: unknown
+}
+
+const isFn = (value: unknown): value is (...args: unknown[]) => unknown =>
+  typeof value === 'function'
+
+/**
+ * Structural probe for the enforcement surface of a host Context. True when
+ * every domain the plugin needs is present (v2 target API); false on preview
+ * hosts that only expose transform/catalog-style domains.
+ */
+export function isEnforcementCapableContext(context: unknown): boolean {
+  const c = context as EnforcementContextShape | null | undefined
+  if (!c || typeof c !== 'object') return false
+  return (
+    !!c.location &&
+    typeof c.location.directory === 'string' &&
+    !!c.tool &&
+    isFn(c.tool.hook) &&
+    isFn(c.tool.transform) &&
+    !!c.permission &&
+    isFn(c.permission.hook) &&
+    !!c.session &&
+    isFn(c.session.hook) &&
+    !!c.storage &&
+    isFn(c.storage.get) &&
+    isFn(c.storage.set)
+  )
+}

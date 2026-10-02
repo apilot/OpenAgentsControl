@@ -294,3 +294,73 @@ describe('v2 plugin setup', () => {
     })
   })
 })
+
+// --- preview-Context graceful degradation ---
+
+describe('preview-Context graceful degradation', () => {
+  it('isEnforcementCapableContext accepts a fully capable host', async () => {
+    const { isEnforcementCapableContext } = await import('../src/v2-plugin.ts')
+    const capable = {
+      location: { directory: '/tmp/project' },
+      options: {},
+      tool: { hook: () => {}, transform: () => {} },
+      permission: { hook: () => {} },
+      session: { hook: () => {} },
+      storage: { get: () => {}, set: () => {} },
+    }
+    expect(isEnforcementCapableContext(capable)).toBe(true)
+  })
+
+  it('isEnforcementCapableContext rejects preview hosts missing each domain', async () => {
+    const { isEnforcementCapableContext } = await import('../src/v2-plugin.ts')
+    const capable: Record<string, unknown> = {
+      location: { directory: '/tmp/project' },
+      options: {},
+      tool: { hook: () => {}, transform: () => {} },
+      permission: { hook: () => {} },
+      session: { hook: () => {} },
+      storage: { get: () => {}, set: () => {} },
+    }
+    expect(isEnforcementCapableContext(capable)).toBe(true)
+    for (const domain of ['location', 'tool', 'permission', 'session', 'storage']) {
+      const broken = { ...capable }
+      delete broken[domain]
+      expect(isEnforcementCapableContext(broken)).toBe(false)
+    }
+    expect(isEnforcementCapableContext(null)).toBe(false)
+    expect(isEnforcementCapableContext('nope')).toBe(false)
+    // Tool domain without transform (hook-only) is not enough.
+    expect(
+      isEnforcementCapableContext({ ...capable, tool: { hook: () => {} } }),
+    ).toBe(false)
+  })
+
+  it('setup() on a preview host logs a loud warning and stays idle', async () => {
+    const { createAbilitiesPluginV2, isEnforcementCapableContext } = await import('../src/v2-plugin.ts')
+    // Shape observed on opencode2 preview: transform/catalog domains only.
+    const previewContext = {
+      options: {},
+      agent: { transform: () => {}, reload: () => {} },
+      skill: { transform: () => {}, reload: () => {} },
+      command: { transform: () => {}, reload: () => {} },
+    }
+    expect(isEnforcementCapableContext(previewContext)).toBe(false)
+
+    const errors: string[] = []
+    const originalError = console.error
+    console.error = (message?: unknown) => {
+      errors.push(String(message))
+    }
+    try {
+      const plugin = createAbilitiesPluginV2()
+      const result = await plugin.setup(previewContext as never)
+      expect(result).toBeUndefined()
+    } finally {
+      console.error = originalError
+    }
+    const warning = errors.join('\n')
+    expect(warning).toContain('[abilities]')
+    expect(warning).toContain('DISABLED')
+    expect(warning).toContain('preview')
+  })
+})
