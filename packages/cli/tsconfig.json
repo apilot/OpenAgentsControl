@@ -5,7 +5,6 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022", "ESNext"],
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -19,7 +18,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@openagents-control/compatibility-layer": ["../compatibility-layer/dist/index.d.ts"]
+      "@openagents-control/compatibility-layer": ["../compatibility-layer/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
