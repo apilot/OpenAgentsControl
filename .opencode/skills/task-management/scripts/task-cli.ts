@@ -46,6 +46,33 @@ const PROJECT_ROOT = findProjectRoot();
 const TASKS_DIR = path.join(PROJECT_ROOT, '.tmp', 'tasks');
 const COMPLETED_DIR = path.join(TASKS_DIR, 'completed');
 
+// Identifiers come from argv and are joined into filesystem paths: keep them
+// strict so a crafted feature/seq cannot traverse or inject paths.
+const FEATURE_RE = /^[a-z0-9][a-z0-9-]*$/;
+const SEQ_RE = /^\d{2}$/;
+
+function assertFeature(feature: string): void {
+  if (!FEATURE_RE.test(feature)) {
+    console.log(`Error: invalid feature id '${feature}' (expected lowercase slug: a-z, 0-9, -)`);
+    process.exit(1);
+  }
+}
+
+function assertSeq(seq: string): void {
+  if (!SEQ_RE.test(seq)) {
+    console.log(`Error: invalid task seq '${seq}' (expected two digits, e.g. 01)`);
+    process.exit(1);
+  }
+}
+
+/** Atomic write: temp file in the same directory + rename, so a crash mid-write
+ *  cannot leave a truncated tracking JSON behind. */
+function writeFileAtomic(filePath: string, content: string): void {
+  const tmp = `${filePath}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, content);
+  fs.renameSync(tmp, filePath);
+}
+
 interface Task {
   id: string;
   name: string;
@@ -85,7 +112,11 @@ function getFeatureDirs(): string[] {
   if (!fs.existsSync(TASKS_DIR)) return [];
   return fs.readdirSync(TASKS_DIR).filter((f: string) => {
     const fullPath = path.join(TASKS_DIR, f);
-    return fs.statSync(fullPath).isDirectory() && f !== 'completed';
+    try {
+      return fs.statSync(fullPath).isDirectory() && f !== 'completed';
+    } catch {
+      return false; // raced removal or broken symlink — skip
+    }
   });
 }
 
@@ -96,6 +127,7 @@ function loadTask(feature: string): Task | null {
 }
 
 function loadSubtasks(feature: string): Subtask[] {
+  assertFeature(feature);
   const featureDir = path.join(TASKS_DIR, feature);
   if (!fs.existsSync(featureDir)) return [];
 
@@ -107,13 +139,15 @@ function loadSubtasks(feature: string): Subtask[] {
 }
 
 function saveSubtask(feature: string, subtask: Subtask): void {
+  assertFeature(feature);
+  assertSeq(subtask.seq);
   const subtaskPath = path.join(TASKS_DIR, feature, `subtask_${subtask.seq}.json`);
-  fs.writeFileSync(subtaskPath, JSON.stringify(subtask, null, 2));
+  writeFileAtomic(subtaskPath, JSON.stringify(subtask, null, 2));
 }
 
 function saveTask(feature: string, task: Task): void {
-  const taskPath = path.join(TASKS_DIR, feature, 'task.json');
-  fs.writeFileSync(taskPath, JSON.stringify(task, null, 2));
+  assertFeature(feature);
+  writeFileAtomic(path.join(TASKS_DIR, feature, 'task.json'), JSON.stringify(task, null, 2));
 }
 
 // Verification (evidence-based completion)
@@ -349,7 +383,9 @@ function cmdBlocked(feature?: string): void {
   }
 }
 
-function cmdComplete(feature: string, seq: string, summary: string): void {
+function cmdComplete(feature: string, seq: string, summary: string, allowUnverified = false): void {
+  assertFeature(feature);
+  assertSeq(seq);
   if (summary.length > 200) {
     console.log('Error: Summary must be max 200 characters');
     process.exit(1);
@@ -368,8 +404,13 @@ function cmdComplete(feature: string, seq: string, summary: string): void {
     console.log(`\n=== Verification gate: ${feature}/${seq} ===\n`);
     const report = enforceVerification(feature, subtask);
     console.log(`\n✓ Verification passed (${report?.results.length ?? 0} check(s))`);
+  } else if (allowUnverified) {
+    console.log('⚠ No verification block — completion is SELF-REPORTED (--allow-unverified)');
   } else {
-    console.log('⚠ No verification block — completion is self-reported (add "verification" checks for evidence-based gating)');
+    console.log('Error: task has no verification block — evidence gate cannot pass.');
+    console.log('  Fix: add a "verification" array to the subtask JSON (command | file_exists | file_contains checks).');
+    console.log('  Escape hatch: re-run with --allow-unverified to self-report explicitly.');
+    process.exit(1);
   }
 
   subtask.status = 'completed';
@@ -628,7 +669,8 @@ switch (command) {
       console.log('Usage: complete <feature> <seq> "summary"');
       process.exit(1);
     }
-    cmdComplete(args[0], args[1], args.slice(2).join(' '));
+    const allowUnverified = args.includes('--allow-unverified');
+    cmdComplete(args[0], args[1], args.slice(2).filter(a => a !== '--allow-unverified').join(' '), allowUnverified);
     break;
   case 'verify':
     if (args.length < 2) {

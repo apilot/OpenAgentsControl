@@ -64,7 +64,7 @@ bash .opencode/skills/task-management/router.sh validate
 | `parallel [feature]` | Show parallelizable tasks ready to run |
 | `deps <feature> <seq>` | Show dependency tree for a specific subtask |
 | `blocked [feature]` | Show blocked tasks and why |
-| `complete <feature> <seq> "summary"` | Mark subtask complete (gated by `verification` checks when present) |
+| `complete <feature> <seq> "summary"` | Mark subtask complete; tasks without a `verification` block require `--allow-unverified` |
 | `verify <feature> <seq>` | Run machine checks and write evidence report (`verification_{seq}.json`) |
 | `validate [feature]` | Validate JSON files, dependencies, and verification blocks |
 | `help` | Show help message |

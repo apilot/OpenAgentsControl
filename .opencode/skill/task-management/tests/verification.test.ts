@@ -304,11 +304,24 @@ describe("task-cli verification integration", () => {
     expect(readSubtask("02").completion_summary).toBeNull();
   });
 
-  it("complete stays backward-compatible without a verification block", () => {
+  it("complete refuses unverified tasks without an explicit escape hatch", () => {
     const proc = runCli(["complete", "demo", "03", "legacy self-reported"]);
+    expect(proc.status).toBe(1);
+    expect(proc.stdout).toContain("--allow-unverified");
+    expect(readSubtask("03").status).toBe("in_progress");
+  });
+
+  it("complete --allow-unverified is the explicit self-report escape hatch", () => {
+    const proc = runCli(["complete", "demo", "03", "legacy self-reported", "--allow-unverified"]);
     expect(proc.status).toBe(0);
-    expect(proc.stdout).toContain("No verification block");
+    expect(proc.stdout).toContain("SELF-REPORTED");
     expect(readSubtask("03").status).toBe("completed");
+  });
+
+  it("rejects invalid feature ids and seqs before touching the filesystem", () => {
+    expect(runCli(["complete", "Bad_Feature", "01", "x"]).status).toBe(1);
+    expect(runCli(["verify", "../escape", "01"]).status).toBe(1);
+    expect(runCli(["complete", "demo", "1", "x"]).status).toBe(1);
   });
 
   it("complete rejects a malformed verification block", () => {
