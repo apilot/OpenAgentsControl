@@ -1,0 +1,45 @@
+name: Fresh Clone Green
+
+# Acceptance gate: a pristine checkout must install and pass the test
+# suites with zero failures. This is the metric the README banner cites.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-clone-green:
+    name: bun install && bun test (fresh clone)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Framework suite (fresh clone)
+        run: cd evals/framework && bun test
+        env:
+          # Integration suites require the opencode CLI (documented skip
+          # reason); a fresh clone has no opencode install.
+          SKIP_INTEGRATION: 'true'
+
+      - name: CLI typecheck (no prebuilt workspace deps)
+        run: cd packages/cli && bun run typecheck
+
+      - name: CLI behavior tests
+        run: cd packages/cli && bun test
+
+      - name: Makefile targets the maintained fork
+        run: grep -q '^REPO := apilot/OpenAgentsControl$' Makefile

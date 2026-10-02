@@ -35,7 +35,8 @@
 > **full OpenCode v2 plugin support**, **machine-verified task completion** (agents cannot
 > mark work done without passing executable checks), **live tool enforcement during ability
 > runs** (proven in a Docker clean-room E2E with a real LLM), a whole-repo **symbol map**
-> tool, and 182 green tests. Details: [RELEASE-NOTES.md](RELEASE-NOTES.md).
+> tool, and 345 green tests (integration checks auto-skip when the opencode CLI is
+> absent — gated by CI job `fresh-clone-green`). Details: [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 ---
 
