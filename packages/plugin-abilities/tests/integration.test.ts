@@ -200,6 +200,7 @@ describe('Integration: ExecutionManager', () => {
       ],
     }
 
+    const t0 = Date.now()
     const promise = manager.execute(ability, {}, createMockContext())
 
     const active = manager.getActive()
@@ -210,15 +211,60 @@ describe('Integration: ExecutionManager', () => {
     expect(manager.cancel('exec_does_not_exist')).toBe(false)
     expect(manager.getActive()!.status).toBe('running')
 
-    // Correct id cancels the active execution; abort is honored before the next step
+    // Correct id cancels the active execution; abort kills the running child
     expect(manager.cancel(active!.id)).toBe(true)
 
     const execution = await promise
+    expect(Date.now() - t0).toBeLessThan(3000) // child killed, not awaited
     expect(execution.status).toBe('failed')
     expect(execution.error).toBe('Cancelled')
     expect(manager.getActive()).toBeNull()
-    // The step already running at cancel time completes; the next one never starts
-    expect(execution.completedSteps.map((s) => s.stepId)).toEqual(['slow'])
+    // The step that was running at cancel time was killed — not completed
+    expect(execution.completedSteps.filter((s) => s.status === 'completed').map((s) => s.stepId)).toEqual([])
+  })
+
+  it('enforces step.timeout by killing the process group', async () => {
+    const ability: Ability = {
+      name: 'timeout-test',
+      description: 'Timeout test',
+      steps: [{ id: "slow", type: "script", run: "sleep 5", timeout: "400ms" }],
+    }
+
+    const t0 = Date.now()
+    const execution = await manager.execute(ability, {}, createMockContext())
+
+    expect(Date.now() - t0).toBeLessThan(3000)
+    expect(execution.status).toBe('failed')
+    expect(execution.error).toContain('timed out')
+  })
+
+  it('fails the ability when step dependencies are unresolvable', async () => {
+    const ability: Ability = {
+      name: 'bad-deps-test',
+      description: 'Unresolvable deps test',
+      steps: [
+        { id: 'orphan', type: 'script', run: 'echo x', needs: ['ghost'] },
+        { id: 'fine', type: 'script', run: 'echo y' },
+      ],
+    }
+
+    const execution = await manager.execute(ability, {}, createMockContext())
+    expect(execution.status).toBe('failed')
+    expect(execution.error).toContain('Unresolvable step dependencies')
+    expect(execution.error).toContain('ghost')
+  })
+
+  it('treats unparseable when-conditions as not met (skip, fail-closed)', async () => {
+    const ability: Ability = {
+      name: 'when-test',
+      description: 'Condition test',
+      steps: [{ id: 'guarded', type: 'script', run: 'echo x', when: 'inputs.gate > 5' }],
+    }
+
+    const execution = await manager.execute(ability, { gate: '10' }, createMockContext())
+    expect(execution.status).toBe('completed')
+    const guarded = execution.completedSteps.find((s) => s.stepId === 'guarded')
+    expect(guarded?.status).toBe('skipped')
   })
 
   it('should expose live step progress on the active execution (v1 silent-enforcement regression)', async () => {

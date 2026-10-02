@@ -94,20 +94,45 @@ function summarizeOutput(output: string): string {
   return `## Output Summary\n\n${head}\n\n... [${lines.length - 15} lines omitted] ...\n\n${tail}`
 }
 
+/** Parse a duration string like "90s" / "500ms" / "2m" / "1h" / "1500" (ms). */
+export function parseDurationMs(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined
+  const m = value.trim().match(/^(\d+(?:\.\d+)?)\s*(ms|s|m|h)?$/i)
+  if (!m) return undefined
+  const n = Number(m[1])
+  switch ((m[2] || 'ms').toLowerCase()) {
+    case 'ms': return n
+    case 's': return n * 1000
+    case 'm': return n * 60_000
+    case 'h': return n * 3_600_000
+    default: return undefined
+  }
+}
+
 async function runScript(
   command: string,
-  options: { cwd?: string; env?: Record<string, string> }
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  options: {
+    cwd?: string
+    env?: Record<string, string>
+    signal?: AbortSignal
+    timeoutMs?: number
+  }
+): Promise<{ stdout: string; stderr: string; exitCode: number; terminated?: 'aborted' | 'timeout' }> {
   return new Promise((resolve) => {
+    // detached:true makes sh the process-group leader so a kill can take the
+    // whole tree (the command itself often spawns children, e.g. `sleep`).
     const proc = spawn('sh', ['-c', command], {
       cwd: options.cwd || process.cwd(),
       // Use Object.create(null) to prevent prototype pollution from a crafted
       // __proto__ key that could appear in step.env or ctx.env.
       env: Object.assign(Object.create(null), process.env, options.env),
+      detached: process.platform !== 'win32',
     })
 
+    let settled = false
     let stdout = ''
     let stderr = ''
+    let terminated: 'aborted' | 'timeout' | undefined
 
     proc.stdout.on('data', (data) => {
       stdout += data.toString()
@@ -117,12 +142,43 @@ async function runScript(
       stderr += data.toString()
     })
 
+    // Kill the entire process group; escalate to SIGKILL after a grace period.
+    const killTree = (why: 'aborted' | 'timeout') => {
+      if (settled) return
+      terminated = why
+      stderr += `\n[abilities] step ${why === 'aborted' ? 'aborted' : 'timed out'}\n`
+      const sig: NodeJS.Signals = 'SIGTERM'
+      if (proc.pid !== undefined) {
+        try { process.kill(-proc.pid, sig) } catch { try { proc.kill(sig) } catch { /* already gone */ } }
+      }
+      setTimeout(() => {
+        if (proc.pid !== undefined) {
+          try { process.kill(-proc.pid, 'SIGKILL') } catch { try { proc.kill('SIGKILL') } catch { /* already gone */ } }
+        }
+      }, 2000).unref()
+    }
+
+    if (options.signal) {
+      if (options.signal.aborted) killTree('aborted')
+      else options.signal.addEventListener('abort', () => killTree('aborted'), { once: true })
+    }
+
+    let timer: NodeJS.Timeout | undefined
+    if (options.timeoutMs && options.timeoutMs > 0) {
+      timer = setTimeout(() => killTree('timeout'), options.timeoutMs)
+      timer.unref()
+    }
+
     proc.on('close', (code) => {
-      resolve({ stdout, stderr, exitCode: code ?? 1 })
+      if (timer) clearTimeout(timer)
+      settled = true
+      resolve({ stdout, stderr, exitCode: code ?? 1, terminated })
     })
 
     proc.on('error', (error) => {
-      resolve({ stdout, stderr: error.message, exitCode: 1 })
+      if (timer) clearTimeout(timer)
+      settled = true
+      resolve({ stdout, stderr: error.message, exitCode: 1, terminated })
     })
   })
 }
@@ -131,7 +187,8 @@ async function executeScriptStep(
   step: ScriptStep,
   execution: AbilityExecution,
   ctx: ExecutorContext,
-  stepOutputs: Map<string, string>
+  stepOutputs: Map<string, string>,
+  signal?: AbortSignal
 ): Promise<StepResult> {
   const startedAt = Date.now()
 
@@ -146,11 +203,18 @@ async function executeScriptStep(
       // Object.create(null) prevents prototype pollution from a crafted
       // __proto__ key in ctx.env or step.env.
       env: Object.assign(Object.create(null), ctx.env, step.env),
+      signal,
+      timeoutMs: parseDurationMs(step.timeout),
     })
 
     // Validate exit code if specified
-    let failed = false
+    let failed = result.terminated !== undefined
     let error: string | undefined
+    if (result.terminated === 'timeout') {
+      error = `Step timed out after ${step.timeout}ms`
+    } else if (result.terminated === 'aborted') {
+      error = 'Cancelled'
+    }
 
     if (step.validation?.exit_code !== undefined && result.exitCode !== step.validation.exit_code) {
       failed = true
@@ -335,11 +399,13 @@ function evaluateCondition(condition: string, inputs: InputValues, stepOutputs: 
     const [, key, expected] = match
     return String(inputs[key]) === expected
   }
-  return true // default: condition met
+  // Fail closed: an unparseable condition must not silently enable the step.
+  console.warn(`[abilities] Unrecognized condition '${condition}' — treating as not met (step skipped)`)
+  return false
 }
 
-function buildExecutionOrder(steps: Step[]): Step[] {
-  const result: Step[] = []
+function buildExecutionOrder(steps: Step[]): { ordered: Step[]; unresolved: Step[] } {
+  const ordered: Step[] = []
   const completed = new Set<string>()
   const remaining = [...steps]
 
@@ -350,16 +416,18 @@ function buildExecutionOrder(steps: Step[]): Step[] {
     })
 
     if (!next) {
+      // Circular or missing dependencies: whatever is left can never run.
+      // Fail closed — the caller must not treat dropped steps as success.
       console.error('[abilities] Unable to resolve step order - circular dependency?')
-      break
+      return { ordered, unresolved: remaining }
     }
 
-    result.push(next)
+    ordered.push(next)
     completed.add(next.id)
     remaining.splice(remaining.indexOf(next), 1)
   }
 
-  return result
+  return { ordered, unresolved: [] }
 }
 
 async function executeWorkflowStep(
@@ -432,11 +500,12 @@ async function executeStep(
   step: Step,
   execution: AbilityExecution,
   ctx: ExecutorContext,
-  stepOutputs: Map<string, string>
+  stepOutputs: Map<string, string>,
+  signal?: AbortSignal
 ): Promise<StepResult> {
   switch (step.type) {
     case 'script':
-      return executeScriptStep(step, execution, ctx, stepOutputs)
+      return executeScriptStep(step, execution, ctx, stepOutputs, signal)
     case 'agent':
       return executeAgentStep(step, execution, ctx, stepOutputs)
     case 'skill':
@@ -492,7 +561,24 @@ export async function executeAbility(
   }
 
   // Build execution order based on dependencies
-  const orderedSteps = buildExecutionOrder(ability.steps)
+  const { ordered: orderedSteps, unresolved } = buildExecutionOrder(ability.steps)
+  if (unresolved.length > 0) {
+    // Fail closed: dropped steps must never look like a completed ability.
+    const ids = unresolved.map((s) => `${s.id} (needs: ${(s.needs ?? []).join(', ') || '-'})`).join(', ')
+    return {
+      id: generateExecutionId(),
+      ability,
+      inputs: resolvedInputs,
+      status: 'failed',
+      currentStep: null,
+      currentStepIndex: -1,
+      completedSteps: [],
+      pendingSteps: unresolved,
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+      error: `Unresolvable step dependencies (circular or missing 'needs'): ${ids}`,
+    }
+  }
 
   // Check for cancellation before starting execution
   if (signal?.aborted) {
@@ -561,7 +647,7 @@ export async function executeAbility(
 
     ctx.onStepStart?.(step)
 
-    const result = await executeStep(step, execution, ctx, stepOutputs)
+    const result = await executeStep(step, execution, ctx, stepOutputs, signal)
     execution.completedSteps.push(result)
     execution.pendingSteps = execution.pendingSteps.filter((s) => s.id !== step.id)
 
