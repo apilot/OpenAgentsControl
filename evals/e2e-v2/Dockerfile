@@ -13,6 +13,9 @@ RUN apt-get update \
       python3-yaml \
       procps \
       unzip \
+      universal-ctags \
+      ripgrep \
+      fzf \
  && rm -rf /var/lib/apt/lists/*
 
 # Legacy builder creates WORKDIR dirs as root — pre-create writable ones explicitly.

@@ -61,6 +61,19 @@ else
   fail "repo suites crashed"
 fi
 
+step "[3b] repo-map toolchain + smoke (ctags backend in image)"
+if ctags --list-features 2>/dev/null | grep -q json; then
+  pass "universal-ctags with JSON backend present"
+else
+  fail "ctags JSON backend missing"
+fi
+if bash /home/node/e2e/work/oac/scripts/development/repo-map.sh generate --root /home/node/e2e/work/oac --top 10 \
+   | grep -qE '^# repo-map files=[0-9]+ symbols=[0-9]+ shown=[0-9]+$'; then
+  pass "repo-map generate: header + map produced (ctags backend)"
+else
+  fail "repo-map generate failed"
+fi
+
 step "[4] fixture project (v1 engine: opencode.json + plugin wrapper + ability)"
 FIX=/home/node/e2e/v1-project
 rm -rf "$FIX"; mkdir -p "$FIX/.opencode/plugins" "$FIX/.opencode/abilities"
