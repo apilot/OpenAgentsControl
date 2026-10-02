@@ -99,6 +99,11 @@ preview, `ensure-deps` installer helper (apt/brew/dnf/pacman). Data files (lockf
 are excluded; output contains only real code symbols with line numbers.
 
 ### 6. Docker clean-room E2E (`evals/e2e-v2/`)
+
+> **Optional verification bench.** Docker is **not** required to use OpenAgents Control —
+> `opencode` + the plugins + `task-cli`/`stage-cli` all run as your normal user.
+> This harness is the stand on which every release is validated from a clean install
+> (fresh image → repo copy → full test suites → live enforcement against a real LLM).
 One command (`run.sh`) builds/reuses an image and validates the entire product in an
 isolated container: fresh repo copy → full test suites → fixture project → **live
 enforcement scenario with a real LLM** (z.ai key passed via env) → task-gate scenario →
