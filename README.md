@@ -31,6 +31,12 @@
 
 > **Built on [OpenCode](https://opencode.ai)** - An open-source AI coding framework. OAC extends OpenCode with specialized agents, context management, and team workflows.
 
+> **📌 Community fork (active development).** Upstream is unmaintained. This fork adds:
+> **full OpenCode v2 plugin support**, **machine-verified task completion** (agents cannot
+> mark work done without passing executable checks), **live tool enforcement during ability
+> runs** (proven in a Docker clean-room E2E with a real LLM), a whole-repo **symbol map**
+> tool, and 182 green tests. Details: [RELEASE-NOTES.md](RELEASE-NOTES.md).
+
 ---
 
 ## The Problem
