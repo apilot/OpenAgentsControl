@@ -42,6 +42,7 @@ Key architectural finding: **V1 plugin implementations do not run in OpenCode v2
 - [ ] Visual workflow designer
 - [ ] Agent marketplace/registry
 - [ ] Cloud-based agent coordination (GNAP git-native coordination, #273)
+- [ ] **Phase 3 candidates** (from pi.dev security/containerization practices): project-trust gate for `.opencode/plugins` loading; sandboxed ability script-steps (Docker/Gondolin-style tool-only isolation instead of host shell); credential proxy for the e2e harness
 - [ ] Integration with popular IDEs
 
 ---
