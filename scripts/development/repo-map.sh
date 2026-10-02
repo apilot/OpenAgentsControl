@@ -56,10 +56,11 @@ fi
 [ "$BACKEND" = none ] && BACKEND=grep
 
 # ── symbol extraction backends: emit `path<TAB>kind<TAB>name<TAB>line` ──
-EXCLUDES=(--exclude=node_modules --exclude=.git --exclude=dist --exclude=.tmp --exclude=build --exclude=coverage)
+EXCLUDES=(--exclude=node_modules --exclude=.git --exclude=dist --exclude=.tmp --exclude=build --exclude=coverage --exclude=package-lock.json --exclude=yarn.lock --exclude=pnpm-lock.yaml --exclude='*.min.js' --exclude=.next)
 
 emit_ctags() {
-  ctags -R --output-format=json --fields=NeKSl --extras=-F \
+  ctags -R --output-format=json --fields=+n --extras=-F \
+    --languages=-JSON,YAML,Markdown,Ini,Html,Css,Make,[\n]* \
     "${EXCLUDES[@]}" -f - "$ROOT" 2>/dev/null |
   python3 -c '
 import json, sys
@@ -71,6 +72,9 @@ for raw in sys.stdin:
     if not path or not name: continue
     kind = str(tag.get("kind","symbol")).replace("\t"," ")
     line = tag.get("line","")
+    # Data files (JSON/YAML) yield primitive keys with no line — not useful symbols.
+    if kind in ("string", "number", "boolean"): continue
+    if not line or str(line) == "0": continue
     print(f"{path}\t{kind}\t{name}\t{line}")
 '
 }
