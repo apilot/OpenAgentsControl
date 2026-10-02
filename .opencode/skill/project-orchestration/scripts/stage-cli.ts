@@ -224,6 +224,54 @@ function getStageById(stageId: number) {
   return STAGES.find(s => s.id === stageId);
 }
 
+// Evidence gate: machine-checkable stage outputs
+
+/** Prose outputs ('Implemented deliverables') stay advisory; paths/globs are enforced. */
+const PATH_LIKE_OUTPUT = /[/\\]|\.(json|md|ts|js|ya?ml|txt|csv)$/i;
+
+function globToRegExp(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
+  return new RegExp(`^${escaped}$`);
+}
+
+function listMatchingFiles(dir: string, pattern: string): string[] {
+  const base = path.dirname(pattern);
+  const target = path.join(dir, base);
+  if (!fs.existsSync(target)) return [];
+  const re = globToRegExp(path.basename(pattern));
+  return fs.readdirSync(target).filter((f: string) => re.test(f));
+}
+
+/**
+ * Evidence gate for stage completion. Outputs that look like filesystem
+ * paths/globs (`{feature}` substituted) must exist in the project root or the
+ * feature session dir; prose outputs are not machine-checkable and are skipped.
+ */
+function checkStageOutputs(feature: string, stage: { outputs: string[] }): { missing: string[]; checked: number } {
+  const sessionDir = getSessionDir(feature);
+  const missing: string[] = [];
+  let checked = 0;
+
+  for (const raw of stage.outputs) {
+    if (!PATH_LIKE_OUTPUT.test(raw)) continue;
+    checked++;
+    const pattern = raw.replaceAll('{feature}', feature);
+
+    if (!pattern.includes('*')) {
+      const inRoot = fs.existsSync(path.join(PROJECT_ROOT, pattern));
+      const inSession = !!sessionDir && fs.existsSync(path.join(sessionDir, pattern));
+      if (!inRoot && !inSession) missing.push(raw);
+      continue;
+    }
+
+    const inRoot = listMatchingFiles(PROJECT_ROOT, pattern).length > 0;
+    const inSession = sessionDir ? listMatchingFiles(sessionDir, pattern).length > 0 : false;
+    if (!inRoot && !inSession) missing.push(raw);
+  }
+
+  return { missing, checked };
+}
+
 // Command implementations
 function initCommand(feature: string): void {
   const existingTracking = loadStageTracking(feature);
@@ -392,6 +440,26 @@ function completeCommand(feature: string, stageId: number): void {
     console.log(`❌ Stage status not found`);
     process.exit(1);
   }
+  
+  // Prerequisites gate: a stage cannot complete before its prerequisites.
+  const prerequisitesFailed = stage.prerequisites.filter(prereqId => {
+    const prereqStatus = tracking.stages.find(s => s.id === prereqId);
+    return !prereqStatus || prereqStatus.status !== 'completed';
+  });
+  if (prerequisitesFailed.length > 0) {
+    console.log(`❌ Cannot complete stage ${stageId} - prerequisites not completed: ${prerequisitesFailed.join(', ')}`);
+    process.exit(1);
+  }
+  
+  // Evidence gate: machine-checkable outputs must exist before completion.
+  const { missing, checked } = checkStageOutputs(feature, stage);
+  if (missing.length > 0) {
+    console.log(`\n❌ Evidence gate failed — ${missing.length} of ${checked} artifact check(s) missing:`);
+    missing.forEach(m => console.log(`   - ${m}`));
+    console.log(`\n   Create the artifacts (project root or the feature session dir), then re-run complete.`);
+    process.exit(1);
+  }
+  console.log(`✅ Evidence gate passed (${checked} artifact check(s))`);
   
   // Mark stage as completed
   stageStatus.status = 'completed';
