@@ -108,6 +108,38 @@ describe("repo-map ensure-deps (no ctags on PATH)", () => {
   });
 });
 
+describe("repo-map ensure-deps: multi-distro package managers", () => {
+  it("prints the distro-specific install command for each detected PM", () => {
+    for (const [pm, expected] of [
+      ["apt-get", "sudo apt-get install -y universal-ctags fzf ripgrep"],
+      ["dnf", "sudo dnf install -y universal-ctags fzf ripgrep"],
+      ["pacman", "sudo pacman -S --noconfirm universal-ctags fzf ripgrep"],
+      ["zypper", "sudo zypper --non-interactive install universal-ctags fzf ripgrep"],
+      ["apk", "sudo apk add universal-ctags fzf ripgrep"],
+      ["emerge", "sudo emerge --ask=n dev-util/universal-ctags app-shells/fzf sys-apps/ripgrep"],
+      ["brew", "brew install universal-ctags fzf ripgrep"],
+      ["winget", 'pwsh -c "winget install --id universal-ctags.ctags -e"'],
+      ["scoop", "scoop install universal-ctags fzf ripgrep"],
+    ] as const) {
+      const stub = fs.mkdtempSync(path.join(os.tmpdir(), "oac-pm-"));
+      // Core utils: symlink the real host binaries; the PM itself: a synthetic
+      // executable stub (detection only needs `command -v` to succeed).
+      for (const tool of ["sh", "bash", "id", "grep", "sort", "awk", "sed", "head", "find", "printf", "cat", "wc", "tr", "uname", "dirname"]) {
+        const src = ["/usr/bin/" + tool, "/bin/" + tool].find((p) => fs.existsSync(p));
+        if (src) fs.symlinkSync(src, path.join(stub, tool));
+      }
+      fs.writeFileSync(path.join(stub, pm), "#!/bin/sh\nexit 0\n");
+      fs.chmodSync(path.join(stub, pm), 0o755);
+      const proc = spawnSync("/bin/bash", [SCRIPT, "ensure-deps"], {
+        encoding: "utf-8",
+        env: { ...process.env, PATH: stub },
+      });
+      expect(proc.stdout).toContain(expected);
+      fs.rmSync(stub, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("repo-map error handling", () => {
   it("fails cleanly on a missing root", () => {
     const proc = runScript(["generate", "--root", path.join(fixture, "nope")]);

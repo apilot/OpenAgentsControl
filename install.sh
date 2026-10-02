@@ -255,11 +255,16 @@ check_dependencies() {
                 echo "  Ubuntu/Debian: sudo apt-get install ${missing_deps[*]}"
                 echo "  Fedora/RHEL:   sudo dnf install ${missing_deps[*]}"
                 echo "  Arch:          sudo pacman -S ${missing_deps[*]}"
+                echo "  openSUSE:      sudo zypper install ${missing_deps[*]}"
+                echo "  Gentoo:        sudo emerge -a ${missing_deps[*]}"
+                echo "  Alpine:        sudo apk add ${missing_deps[*]}"
                 ;;
             Windows)
                 echo "  Git Bash: Install via https://git-scm.com/"
                 echo "  WSL:      sudo apt-get install ${missing_deps[*]}"
                 echo "  Scoop:    scoop install ${missing_deps[*]}"
+                echo "  Chocolatey: choco install ${missing_deps[*]}"
+                echo "  winget (PowerShell): pwsh -c \"winget install --id <package> -e\""
                 ;;
             *)
                 echo "  Use your package manager to install: ${missing_deps[*]}"

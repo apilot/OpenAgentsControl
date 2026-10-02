@@ -8,7 +8,8 @@
 # Modes:
 #   generate   print compact symbol map (default)
 #   pick       fuzzy-pick an entry via fzf (non-TTY: print the top entry)
-#   ensure-deps  install missing tooling (apt/brew/dnf/pacman) or print the manual command
+#   ensure-deps  install missing tooling via the detected package manager
+#                (apt/dnf/pacman/zypper/emerge/apk/brew; winget/scoop hints on Windows)
 #
 # Flags: --root DIR  --top N  --out FILE  -h
 set -uo pipefail
@@ -144,6 +145,43 @@ render_map() {
   esac | aggregate
 }
 
+# Detect the system package manager (first match wins; brew last on purpose).
+detect_pm() {
+  local pm
+  for pm in apt-get dnf pacman zypper emerge apk brew winget scoop; do
+    have "$pm" && { echo "$pm"; return 0; }
+  done
+  return 1
+}
+
+# Map a generic tool name to the distro-specific package name.
+pm_pkg() {
+  case "$1:$2" in
+    emerge:universal-ctags) echo "dev-util/universal-ctags" ;;
+    emerge:fzf)             echo "app-shells/fzf" ;;
+    emerge:ripgrep)         echo "sys-apps/ripgrep" ;;
+    winget:universal-ctags) echo "universal-ctags.ctags" ;;
+    *) echo "$2" ;;
+  esac
+}
+
+pm_install_cmd() {
+  local pm=$1; shift
+  local pkgs=("$@")
+  case "$pm" in
+    apt-get) echo "apt-get install -y ${pkgs[*]}" ;;
+    dnf)     echo "dnf install -y ${pkgs[*]}" ;;
+    pacman)  echo "pacman -S --noconfirm ${pkgs[*]}" ;;
+    zypper)  echo "zypper --non-interactive install ${pkgs[*]}" ;;
+    apk)     echo "apk add ${pkgs[*]}" ;;
+    emerge)  echo "emerge --ask=n ${pkgs[*]}" ;;
+    brew)    echo "brew install ${pkgs[*]}" ;;
+    winget)  echo "pwsh -c \"winget install --id ${pkgs[0]} -e\"" ;;
+    scoop)   echo "scoop install ${pkgs[*]}" ;;
+    *)       echo "install manually: ${pkgs[*]}" ;;
+  esac
+}
+
 case "$MODE" in
   generate)
     MAP=$(render_map)
@@ -178,18 +216,22 @@ case "$MODE" in
       exit 0
     fi
     echo "repo-map: missing: ${MISSING[*]}"
-    if [ "$(id -u)" = "0" ] && have apt-get; then
-      apt-get install -y "${MISSING[@]}" && exit 0
-    elif have sudo && have apt-get; then
-      echo "repo-map: run: sudo apt-get install -y ${MISSING[*]}"
-    elif have brew; then
-      echo "repo-map: run: brew install ${MISSING[*]}"
-    elif have dnf; then
-      echo "repo-map: run: sudo dnf install -y ${MISSING[*]}"
-    elif have pacman; then
-      echo "repo-map: run: sudo pacman -S --noconfirm ${MISSING[*]}"
+    if PM=$(detect_pm); then
+      PKGS=()
+      for m in "${MISSING[@]}"; do PKGS+=("$(pm_pkg "$PM" "$m")"); done
+      CMD=$(pm_install_cmd "$PM" "${PKGS[@]}")
+      if [ "$PM" = "brew" ] || [ "$PM" = "scoop" ]; then
+        echo "repo-map: run: $CMD"
+      elif [ "$(id -u)" = "0" ]; then
+        echo "repo-map: installing via $PM: $CMD"
+        sh -c "$CMD" && exit 0
+      elif [ "$PM" = "apt-get" ] || [ "$PM" = "dnf" ] || [ "$PM" = "pacman" ] || [ "$PM" = "zypper" ] || [ "$PM" = "apk" ] || [ "$PM" = "emerge" ]; then
+        echo "repo-map: run: sudo $CMD"
+      else
+        echo "repo-map: run: $CMD"
+      fi
     else
-      echo "repo-map: install manually: ${MISSING[*]}"
+      echo "repo-map: no supported package manager found — install manually: ${MISSING[*]}"
     fi
     # Exit 0 only when the semantic backend is actually usable.
     [ "$BACKEND" = ctags ] && exit 0 || exit 1
