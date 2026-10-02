@@ -105,6 +105,20 @@ enforcement scenario with a real LLM** (z.ai key passed via env) → task-gate s
 verdict report with automatic key masking. Repo is mounted read-only; provider keys never
 land in the host-visible report.
 
+**Prerequisites (what you must configure):**
+- Docker (the current user must be allowed to talk to the docker daemon)
+- `ZAI_API_KEY` (or `Z_AI_API_KEY`) in the host environment — a z.ai coding-plan key.
+  It is passed to the container via `-e` only; the script refuses to run without it
+- `~/.local/share/opencode/auth.json` on the host (optional; mounted read-only for
+  opencode provider auth)
+
+```bash
+bash evals/e2e-v2/run.sh        # report: /tmp/opencode/oac-e2e-out/e2e-report.txt
+```
+
+Everything else (node 22, bun, opencode v1 + opencode2 CLI, ctags/rg/fzf, jq, the fixture
+project) is provisioned automatically inside the image on first run.
+
 ---
 
 ## 🔧 Fixes over the old version
