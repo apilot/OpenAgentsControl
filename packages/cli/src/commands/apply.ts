@@ -35,7 +35,7 @@ const SIZE_LIMITS: Partial<Record<IdeType, { warn: number; limit: number }>> = {
 }
 
 /** Supported apply targets (opencode is read-only source, not a write target). */
-const APPLY_TARGETS: IdeType[] = ['cursor', 'claude', 'windsurf']
+export const APPLY_TARGETS: IdeType[] = ['cursor', 'claude', 'windsurf']
 
 // ─── Adapter factory ──────────────────────────────────────────────────────────
 

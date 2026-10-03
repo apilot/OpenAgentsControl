@@ -12,6 +12,12 @@ if (!fs.existsSync(cliDist)) {
   process.exit(1);
 }
 
+// Dev/monorepo mode: the CLI's package-root walk (packages/cli/src/lib/bundled.ts)
+// excludes the monorepo root by design (registry.json marker), so point it at the
+// repo root explicitly. Production npm installs resolve the package root on their
+// own; an already-set OAC_PACKAGE_ROOT takes precedence.
+process.env.OAC_PACKAGE_ROOT = process.env.OAC_PACKAGE_ROOT || path.join(__dirname, '..');
+
 try {
   execFileSync('bun', [cliDist, ...process.argv.slice(2)], { stdio: 'inherit' });
 } catch (err) {

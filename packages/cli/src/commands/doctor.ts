@@ -7,6 +7,7 @@ import { readManifest } from '../lib/manifest.js';
 import { readConfig } from '../lib/config.js';
 import { computeFileHash, hashesMatch } from '../lib/sha256.js';
 import { detectIdes, getIdeDisplayName, getIdeOutputFile } from '../lib/ide-detect.js';
+import { APPLY_TARGETS } from './apply.js';
 import { log, info, warn, error, success, dim, bold, setVerbose } from '../ui/logger.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ const checkModifiedFiles = async (projectRoot: string): Promise<CheckResult> => 
   };
 };
 
-/** Check 7: IDE detection — suggests 'oac apply' for each detected IDE. */
+/** Check 7: IDE detection — suggests 'oac apply' for IDEs that accept generated config files. */
 const checkIdes = async (projectRoot: string): Promise<CheckResult[]> => {
   const ides = await detectIdes(projectRoot);
   const detected = ides.filter((ide) => ide.detected);
@@ -257,11 +258,23 @@ const checkIdes = async (projectRoot: string): Promise<CheckResult[]> => {
     ];
   }
 
-  return detected.map((ide) => ({
-    name: `IDE: ${getIdeDisplayName(ide.type)}`,
-    status: 'warn' as CheckStatus,
-    message: `${getIdeDisplayName(ide.type)} detected (${ide.indicator}) — run 'oac apply ${ide.type}' to sync ${getIdeOutputFile(ide.type)}`,
-  }));
+  return detected.map((ide) => {
+    const displayName = getIdeDisplayName(ide.type);
+    // OpenCode consumes .opencode/ natively (installed by `oac init`) — it is a
+    // read-only source, not an apply target, so there is nothing to sync.
+    if (!APPLY_TARGETS.includes(ide.type)) {
+      return {
+        name: `IDE: ${displayName}`,
+        status: 'ok' as CheckStatus,
+        message: `${displayName} detected (${ide.indicator}) — reads .opencode/ natively, no sync needed`,
+      };
+    }
+    return {
+      name: `IDE: ${displayName}`,
+      status: 'warn' as CheckStatus,
+      message: `${displayName} detected (${ide.indicator}) — run 'oac apply ${ide.type}' to sync ${getIdeOutputFile(ide.type)}`,
+    };
+  });
 };
 
 // ── Result rendering ──────────────────────────────────────────────────────────
