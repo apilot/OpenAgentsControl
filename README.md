@@ -18,12 +18,13 @@
 **Model Agnostic:** Claude • GPT • Gemini • MiniMax • Local models
 
 
-[![GitHub stars](https://img.shields.io/github/stars/darrenhinde/OpenAgentsControl?style=flat-square&logo=github&labelColor=black&color=ffcb47)](https://github.com/darrenhinde/OpenAgentsControl/stargazers)
+[![Fresh Clone Green](https://github.com/apilot/OpenAgentsControl/actions/workflows/fresh-clone-green.yml/badge.svg)](https://github.com/apilot/OpenAgentsControl/actions/workflows/fresh-clone-green.yml)
+[![GitHub stars](https://img.shields.io/github/stars/apilot/OpenAgentsControl?style=flat-square&logo=github&labelColor=black&color=ffcb47)](https://github.com/apilot/OpenAgentsControl/stargazers)
 [![X Follow](https://img.shields.io/twitter/follow/DarrenBuildsAI?style=flat-square&logo=x&labelColor=black&color=1DA1F2)](https://x.com/DarrenBuildsAI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3fb950?style=flat-square&labelColor=black)](https://opensource.org/licenses/MIT)
-[![Last Commit](https://img.shields.io/github/last-commit/darrenhinde/OpenAgentsControl?style=flat-square&labelColor=black&color=8957e5)](https://github.com/darrenhinde/OpenAgentsControl/commits/main)
+[![Last Commit](https://img.shields.io/github/last-commit/apilot/OpenAgentsControl/main?style=flat-square&labelColor=black&color=8957e5)](https://github.com/apilot/OpenAgentsControl/commits/main)
 
-[🚀 Quick Start](#-quick-start) • [💻 Show Me Code](#-example-workflow) • [🗺️ Roadmap](https://github.com/darrenhinde/OpenAgentsControl/projects) • [💬 Community](https://nextsystems.ai)
+[🚀 Quick Start](#-quick-start) • [💻 Show Me Code](#-example-workflow) • [🗺️ Roadmap](ROADMAP.md) • [💬 Upstream](https://github.com/darrenhinde/OpenAgentsControl)
 
 </div>
 
@@ -32,11 +33,11 @@
 > **Built on [OpenCode](https://opencode.ai)** - An open-source AI coding framework. OAC extends OpenCode with specialized agents, context management, and team workflows.
 
 > **📌 Community fork (active development).** Upstream is unmaintained. This fork adds:
-> **full OpenCode v2 plugin support**, **machine-verified task completion** (agents cannot
-> mark work done without passing executable checks), **live tool enforcement during ability
-> runs** (proven in a Docker clean-room E2E with a real LLM), a whole-repo **symbol map**
-> tool, and 345 green tests (integration checks auto-skip when the opencode CLI is
-> absent — gated by CI job `fresh-clone-green`). Details: [RELEASE-NOTES.md](RELEASE-NOTES.md).
+> **full OpenCode v2 plugin support**, an installable **`oac` CLI** (`npm link`), **machine-verified
+> task completion** (agents cannot mark work done without passing executable checks), **live tool
+> enforcement during ability runs** (proven in a Docker clean-room E2E with a real LLM), a
+> whole-repo **symbol map** tool, and 345 green tests (integration checks auto-skip when the
+> opencode CLI is absent — gated by CI job `fresh-clone-green`). Details: [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 ---
 
