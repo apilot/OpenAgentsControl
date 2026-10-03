@@ -10,7 +10,7 @@
   "types": "./dist/index.d.ts",
   "files": ["dist"],
   "scripts": {
-    "build": "rm -rf dist && bun build src/index.ts --outdir dist --target bun --splitting",
+    "build": "rm -rf dist && bun build src/index.ts --outdir dist --target node --splitting",
     "build:watch": "bun build src/index.ts --outdir dist --target bun --splitting --watch",
     "dev": "bun run src/index.ts",
     "test": "bun test",
