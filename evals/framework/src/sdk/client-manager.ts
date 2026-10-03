@@ -1,17 +1,30 @@
-import { createOpencodeClient, type Session, type Message, type Part } from '@opencode-ai/sdk';
+import { OpenCode, type OpenCodeClient } from '@opencode/client';
 
-// SDK input type for text parts
-type TextPartInput = {
-  type: 'text';
-  text: string;
-  id?: string;
-  synthetic?: boolean;
-  ignored?: boolean;
+/**
+ * Loose structural aliases for message/part data flowing through the framework.
+ * OpenCode v2 models messages as a discriminated union (SessionMessageInfo)
+ * with `type` instead of v1's `role`, and embeds parts in `content`.
+ * We normalize to `role` + `parts` so downstream consumers keep working.
+ */
+export type Message = { id: string; role?: string; [key: string]: unknown };
+export type Part = { id?: string; type?: string; [key: string]: unknown };
+
+/** v2 session object (native passthrough) */
+export type Session = {
+  id: string;
+  title?: string;
+  [key: string]: unknown;
 };
 
 export interface ClientConfig {
   baseUrl: string;
   timeout?: number;
+  /**
+   * OpenCode v2 server password. v2 servers require HTTP Basic auth with
+   * user "opencode" and the password printed at server startup
+   * (see ServerManager.getPassword()).
+   */
+  password?: string;
 }
 
 /**
@@ -20,6 +33,13 @@ export interface ClientConfig {
 export interface SessionConfig {
   /** Session title */
   title?: string;
+  /** Agent to run the session with (v2: agent is selected at session level) */
+  agent?: string;
+  /** Model to use for this session (v2: model is selected at session level) */
+  model?: {
+    providerID: string;
+    modelID: string;
+  };
 }
 
 /**
@@ -28,14 +48,14 @@ export interface SessionConfig {
 export interface PromptConfig {
   /** The prompt text to send */
   text: string;
-  /** Agent to use for this prompt (e.g., 'openagent', 'opencoder') */
+  /** Agent to use for this prompt (applied via session.switchAgent) */
   agent?: string;
-  /** Model to use for this prompt */
+  /** Model to use for this prompt (applied via session.switchModel) */
   model?: {
     providerID: string;
     modelID: string;
   };
-  /** Working directory for the agent */
+  /** Working directory for the agent (v2 routes are location-scoped server-side) */
   directory?: string;
   /** Files to attach to the prompt */
   files?: string[];
@@ -57,37 +77,48 @@ export interface SessionInfo {
   }>;
 }
 
+/** Basic auth header value for OpenCode v2 servers (user "opencode"). */
+export function basicAuthHeader(password: string): string {
+  return 'Basic ' + Buffer.from(`opencode:${password}`).toString('base64');
+}
+
 export class ClientManager {
-  private client: ReturnType<typeof createOpencodeClient>;
+  private client: OpenCodeClient;
+  private password?: string;
 
   constructor(config: ClientConfig) {
-    this.client = createOpencodeClient({
+    this.password = config.password;
+    // OpenCode v2: Basic auth header (user "opencode" + startup password).
+    this.client = OpenCode.make({
       baseUrl: config.baseUrl,
+      headers: config.password ? { authorization: basicAuthHeader(config.password) } : undefined,
     });
   }
 
   /**
    * Create a new session
-   * 
-   * Note: Agent selection happens in sendPrompt(), not here.
-   * The SDK's session.create() only accepts title and parentID.
-   * 
+   *
+   * v2 note: agent/model selection happens at the session level
+   * (SessionConfig.agent/model), not per prompt.
+   *
    * @param config - Session configuration
    * @returns Created session
    */
   async createSession(config: SessionConfig = {}): Promise<Session> {
     try {
-      const response = await this.client.session.create({
-        body: {
-          title: config.title || `Eval Session ${new Date().toISOString()}`,
-        },
+      const session = await this.client.session.create({
+        title: config.title || `Eval Session ${new Date().toISOString()}`,
+        agent: config.agent,
+        model: config.model
+          ? { id: config.model.modelID, providerID: config.model.providerID }
+          : undefined,
       });
 
-      if (!response.data) {
+      if (!session) {
         throw new Error('Failed to create session: No data in response');
       }
 
-      return response.data;
+      return session;
     } catch (error) {
       console.error('[ClientManager] Session creation error:', error);
       throw new Error(`Failed to create session: ${(error as Error).message}`);
@@ -96,76 +127,65 @@ export class ClientManager {
 
   /**
    * Send a prompt to a session
-   * 
-   * This is where agent selection happens! The agent parameter in the body
-   * determines which agent processes the prompt.
-   * 
+   *
+   * v2 note: the prompt endpoint no longer accepts agent/model. If provided,
+   * they are applied to the session first via switchAgent/switchModel.
+   *
    * @param sessionId - Session ID to send prompt to
    * @param config - Prompt configuration including agent, text, model, etc.
-   * @returns Message response with info and parts
+   * @returns Normalized message response with info and parts
    */
   async sendPrompt(sessionId: string, config: PromptConfig): Promise<{ info: Message; parts: Part[] }> {
-    const parts: TextPartInput[] = [{ type: 'text', text: config.text }];
-
-    // Add file attachments if specified
-    if (config.files && config.files.length > 0) {
-      // TODO: Implement file attachment support
-      console.warn('[ClientManager] File attachments not yet implemented');
-    }
-
-    // Build request body with agent parameter
-    const body: any = {
-      parts,
-      noReply: config.noReply,
-    };
-
-    // Add agent if specified (this is the key fix!)
+    // Apply per-prompt overrides at session level (v2 contract)
     if (config.agent) {
-      body.agent = config.agent;
+      await this.client.session.switchAgent({ sessionID: sessionId, agent: config.agent });
     }
-
-    // Add model if specified
     if (config.model) {
-      body.model = config.model;
+      await this.client.session.switchModel({
+        sessionID: sessionId,
+        model: { id: config.model.modelID, providerID: config.model.providerID },
+      });
     }
 
-    // Build request with optional directory parameter
-    const request: any = {
-      path: { id: sessionId },
-      body,
-    };
+    const inboxEntry = await this.client.session.prompt({
+      sessionID: sessionId,
+      text: config.text,
+    });
 
-    // Add directory if specified
-    if (config.directory) {
-      request.query = { directory: config.directory };
-    }
-
-    const response = await this.client.session.prompt(request);
-
-    if (!response.data) {
+    if (!inboxEntry) {
       throw new Error('Failed to send prompt: No data in response');
     }
 
-    return response.data;
+    return {
+      info: { ...(inboxEntry as unknown as Message), role: 'user' },
+      parts: [],
+    };
   }
 
   /**
    * Get session details including all messages
+   *
+   * v2 note: messages come from session.context() as a discriminated union.
+   * We normalize v2's `type` to v1's `role` and v2's `content` to `parts`
+   * so existing consumers (role checks, part.type checks) keep working.
    */
   async getSession(sessionId: string): Promise<SessionInfo> {
-    const [sessionResponse, messagesResponse] = await Promise.all([
-      this.client.session.get({ path: { id: sessionId } }),
-      this.client.session.messages({ path: { id: sessionId } }),
+    const [session, messages] = await Promise.all([
+      this.client.session.get({ sessionID: sessionId }),
+      this.client.session.context({ sessionID: sessionId }).catch(() => []),
     ]);
 
-    if (!sessionResponse.data) {
+    if (!session) {
       throw new Error('Failed to get session');
     }
 
     return {
-      id: sessionResponse.data.id,
-      title: sessionResponse.data.title,
-      messages: messagesResponse.data || [],
+      id: session.id,
+      title: session.title,
+      messages: (messages as unknown as Array<Record<string, unknown>>).map((m) => ({
+        info: { ...m, role: m.type } as Message,
+        parts: ((m.content as Part[] | undefined) ?? []) as Part[],
+      })),
     };
   }
 
@@ -174,46 +194,33 @@ export class ClientManager {
    */
   async listSessions(): Promise<Session[]> {
     const response = await this.client.session.list();
-    return response.data || [];
+    return response.data;
   }
 
   /**
    * Delete a session
    */
   async deleteSession(sessionId: string): Promise<boolean> {
-    const response = await this.client.session.delete({
-      path: { id: sessionId },
-    });
-    return response.data || false;
+    await this.client.session.remove({ sessionID: sessionId });
+    return true;
   }
 
   /**
    * Abort a running session
    */
   async abortSession(sessionId: string): Promise<boolean> {
-    const response = await this.client.session.abort({
-      path: { id: sessionId },
-    });
-    return response.data || false;
+    await this.client.session.interrupt({ sessionID: sessionId });
+    return true;
   }
 
   /**
    * Send a command to a session
+   *
+   * Not supported by the OpenCode v2 API (session.command was removed;
+   * v2 exposes session.shell for non-model shell execution instead).
    */
-  async sendCommand(sessionId: string, command: string): Promise<Message> {
-    const response = await this.client.session.command({
-      path: { id: sessionId },
-      body: { 
-        command,
-        arguments: '', // Required by SDK
-      },
-    });
-
-    if (!response.data) {
-      throw new Error('Failed to send command');
-    }
-
-    return response.data.info;
+  async sendCommand(_sessionId: string, _command: string): Promise<Message> {
+    throw new Error('sendCommand is not supported by the OpenCode v2 API');
   }
 
   /**
@@ -224,17 +231,18 @@ export class ClientManager {
     permissionId: string,
     approved: boolean
   ): Promise<boolean> {
-    const response = await this.client.postSessionIdPermissionsPermissionId({
-      path: { id: sessionId, permissionID: permissionId },
-      body: { response: approved ? 'once' : 'reject' },
+    await this.client.permission.reply({
+      sessionID: sessionId,
+      requestID: permissionId,
+      decision: approved ? 'once' : 'reject',
     });
-    return response.data || false;
+    return true;
   }
 
   /**
    * Get the underlying SDK client for advanced usage
    */
-  getClient(): ReturnType<typeof createOpencodeClient> {
+  getClient(): OpenCodeClient {
     return this.client;
   }
 }

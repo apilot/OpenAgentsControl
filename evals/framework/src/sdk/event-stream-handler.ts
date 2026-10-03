@@ -1,4 +1,5 @@
-import { createOpencodeClient } from '@opencode-ai/sdk';
+import { OpenCode, type OpenCodeClient } from '@opencode/client';
+import { basicAuthHeader } from './client-manager.js';
 import { MultiAgentLogger } from '../logging/index.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -44,8 +45,60 @@ export interface PermissionRequestEvent {
 export type EventHandler = (event: ServerEvent) => void | Promise<void>;
 export type PermissionHandler = (event: PermissionRequestEvent) => Promise<boolean>;
 
+/**
+ * OpenCode v2 → framework event type mapping.
+ * v2 ships a fine-grained event taxonomy (session.step.*, session.tool.*, ...)
+ * while framework consumers subscribe to the legacy coarse-grained names.
+ * One v2 event may map to several legacy event types.
+ */
+const V2_EVENT_TYPE_MAP: Record<string, EventType[]> = {
+  'session.created': ['session.created'],
+  'session.status.updated': ['session.updated'],
+  'session.metadata.updated': ['session.updated'],
+  'session.renamed': ['session.updated'],
+  'session.deleted': ['session.deleted'],
+  'session.idle': ['session.status'],
+  'session.execution.started': ['message.created'],
+  'session.step.started': ['message.created'],
+  'session.step.streamed': ['message.updated'],
+  'session.text.started': ['message.created'],
+  'session.text.delta': ['message.updated'],
+  'session.text.ended': ['message.updated'],
+  'session.tool.called': ['tool.call', 'part.created'],
+  'session.tool.progress': ['part.updated'],
+  'session.tool.success': ['tool.result', 'part.updated'],
+  'session.tool.failed': ['tool.result', 'part.updated'],
+  'permission.asked': ['permission.request'],
+  'permission.replied': ['permission.response'],
+};
+
+/**
+ * Normalizes a v2 event ({type, data}) into zero or more legacy ServerEvents.
+ * Pure function — no side effects.
+ */
+function normalizeV2Event(event: { type: string; data?: unknown }): ServerEvent[] {
+  const legacyTypes = V2_EVENT_TYPE_MAP[event.type];
+  if (!legacyTypes || legacyTypes.length === 0) {
+    return [];
+  }
+  const data = (event.data ?? {}) as Record<string, unknown>;
+  return legacyTypes.map((type) => ({
+    type,
+    properties:
+      event.type === 'permission.asked'
+        ? {
+            sessionId: data.sessionID,
+            permissionId: data.id,
+            message: data.message,
+            tool: data.action,
+          }
+        : data,
+    timestamp: Date.now(),
+  }));
+}
+
 export class EventStreamHandler {
-  private client: ReturnType<typeof createOpencodeClient>;
+  private client: OpenCodeClient;
   private eventHandlers: Map<EventType, EventHandler[]> = new Map();
   private permissionHandler: PermissionHandler | null = null;
   private isListening: boolean = false;
@@ -61,8 +114,12 @@ export class EventStreamHandler {
   private cachedAgentName: string | null = null; // Cache agent name from eval-runner.md
   private projectPath: string;
 
-  constructor(baseUrl: string, projectPath?: string) {
-    this.client = createOpencodeClient({ baseUrl });
+  constructor(baseUrl: string, projectPath?: string, password?: string) {
+    // OpenCode v2 servers require HTTP Basic auth (user "opencode" + startup password).
+    this.client = OpenCode.make({
+      baseUrl,
+      headers: password ? { authorization: basicAuthHeader(password) } : undefined,
+    });
     this.projectPath = projectPath || process.cwd();
   }
 
@@ -134,32 +191,29 @@ export class EventStreamHandler {
     this.isListening = true;
 
     try {
-      const response = await this.client.event.subscribe();
+      // v2: subscribe() returns the async iterable directly
+      const stream = this.client.event.subscribe();
 
       // Process events from the stream
-      for await (const event of response.stream) {
+      for await (const event of stream) {
         if (!this.isListening) {
           break;
         }
 
-        const serverEvent: ServerEvent = {
-          type: event.type as EventType,
-          properties: event.properties,
-          timestamp: Date.now(),
-        };
-
+        // Normalize v2 events to the framework's ServerEvent contract
+        for (const serverEvent of normalizeV2Event(event as { type: string; data?: unknown })) {
         // Multi-agent logging hooks
         if (this.multiAgentLogger) {
           this.handleMultiAgentLogging(serverEvent);
         }
 
         // Handle permission requests automatically if handler is registered
-        if ((event.type as string) === 'permission.request' && this.permissionHandler) {
+        if ((serverEvent.type as string) === 'permission.request' && this.permissionHandler) {
           try {
             const approved = await this.permissionHandler(serverEvent as PermissionRequestEvent);
-            
+
             // Respond to the permission request with retry logic
-            const { sessionId, permissionId } = event.properties as any;
+            const { sessionId, permissionId } = serverEvent.properties as any;
             await this.respondToPermissionWithRetry(sessionId, permissionId, approved);
           } catch (error) {
             console.error('Error handling permission request:', error);
@@ -174,6 +228,7 @@ export class EventStreamHandler {
           } catch (error) {
             console.error(`Error in event handler for ${serverEvent.type}:`, error);
           }
+        }
         }
       }
     } catch (error) {
@@ -269,9 +324,10 @@ export class EventStreamHandler {
   ): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.client.postSessionIdPermissionsPermissionId({
-          path: { id: sessionId, permissionID: permissionId },
-          body: { response: approved ? 'once' : 'reject' },
+        await this.client.permission.reply({
+          sessionID: sessionId,
+          requestID: permissionId,
+          decision: approved ? 'once' : 'reject',
         });
         return; // Success
       } catch (error) {

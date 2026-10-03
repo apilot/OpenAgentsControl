@@ -1,5 +1,4 @@
 import { spawn, ChildProcess } from 'child_process';
-import { createOpencode } from '@opencode-ai/sdk';
 
 export interface ServerConfig {
   port?: number;
@@ -14,30 +13,20 @@ export interface ServerConfig {
 
 export class ServerManager {
   private process: ChildProcess | null = null;
-  private sdkServer: any = null; // SDK server instance
   private port: number;
   private hostname: string;
   private isRunning: boolean = false;
-  private useSDK: boolean = false; // Use SDK's createOpencode vs manual spawn
+  /** Server password captured from startup output (v2 servers require Basic auth, user "opencode") */
+  private serverPassword: string | null = null;
 
   constructor(private config: ServerConfig = {}) {
     this.port = config.port || 0; // 0 = random port
     this.hostname = config.hostname || '127.0.0.1';
-    
-    // IMPORTANT: SDK mode is currently broken (session creation fails)
-    // Always use manual spawn until SDK mode is fixed
-    // 
-    // Background:
-    // - Commit 9949220 enabled SDK mode to avoid CLI installation in CI/CD
-    // - SDK mode causes "No data in response" errors during session creation
-    // - Manual spawn works reliably but requires opencode CLI to be installed
-    // 
-    // Current workflow (.github/workflows/test-agents.yml) installs CLI via:
-    //   npm install -g opencode-ai
-    // 
-    // TODO: Investigate and fix SDK mode session creation issue
-    // TODO: Once fixed, use SDK mode in CI: this.useSDK = !!config.agent && isCI
-    this.useSDK = false;
+  }
+
+  /** Password for authenticating against the started server (Basic auth, user "opencode"). */
+  getPassword(): string | null {
+    return this.serverPassword;
   }
 
   /**
@@ -48,73 +37,11 @@ export class ServerManager {
       throw new Error('Server is already running');
     }
 
-    // Use SDK's createOpencode if agent is specified
-    if (this.useSDK) {
-      return this.startWithSDK();
-    }
-
-    // Otherwise use manual spawn
     return this.startManual();
   }
 
   /**
-   * Start server using SDK's createOpencode (supports config)
-   */
-  private async startWithSDK(): Promise<{ url: string; port: number }> {
-    try {
-      const sdkConfig: any = {
-        hostname: this.hostname,
-        port: this.port,
-        timeout: this.config.timeout || 10000,
-      };
-
-      // Add agent config if specified
-      if (this.config.agent) {
-        sdkConfig.config = {
-          agent: this.config.agent,
-        };
-      }
-
-      // Change to the specified directory before starting
-      const originalCwd = process.cwd();
-      if (this.config.cwd) {
-        process.chdir(this.config.cwd);
-      }
-
-      if (this.config.debug) {
-        console.log(`[Server SDK] Creating server with config:`, JSON.stringify(sdkConfig, null, 2));
-      }
-
-      const opencode = await createOpencode(sdkConfig);
-      
-      // Restore original directory
-      if (this.config.cwd) {
-        process.chdir(originalCwd);
-      }
-
-      this.sdkServer = opencode.server;
-      const url = opencode.server.url;
-      // Extract port from URL
-      const portMatch = url.match(/:(\d+)$/);
-      this.port = portMatch ? parseInt(portMatch[1]) : this.port;
-      this.isRunning = true;
-
-      if (this.config.debug) {
-        console.log(`[Server SDK] Started at ${url} with agent: ${this.config.agent}`);
-      }
-
-      // Wait a bit for server to be fully ready
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      return { url, port: this.port };
-    } catch (error) {
-      console.error('[Server SDK] Error:', error);
-      throw new Error(`Failed to start server with SDK: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Start server manually using spawn (legacy method)
+   * Start server manually using spawn
    */
   private async startManual(): Promise<{ url: string; port: number }> {
     return new Promise((resolve, reject) => {
@@ -155,33 +82,72 @@ export class ServerManager {
         }
       }, this.config.timeout || 5000);
 
+      const capturePassword = (text: string): void => {
+        if (this.serverPassword) return;
+        const pwMatch = text.match(/server password (\S+)/);
+        if (pwMatch) {
+          this.serverPassword = pwMatch[1];
+        }
+      };
+
+      /**
+       * Resolves start() exactly once. v2 servers print "server password"
+       * AFTER the "server listening" line, so the caller waits for the
+       * password to arrive before finishing startup.
+       */
+      const finishStart = (url: string): void => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+
+        const portMatch = url.match(/:(\d+)$/);
+        this.port = portMatch ? parseInt(portMatch[1]) : this.port;
+        this.isRunning = true;
+
+        resolve({ url, port: this.port });
+      };
+
+      /** Waits briefly for the password line, then finishes startup either way. */
+      const finishWhenReady = (url: string): void => {
+        if (resolved) return;
+        if (this.serverPassword) {
+          finishStart(url);
+          return;
+        }
+        const deadline = Date.now() + 3000;
+        const poll = setInterval(() => {
+          if (resolved) {
+            clearInterval(poll);
+            return;
+          }
+          if (this.serverPassword || Date.now() > deadline) {
+            clearInterval(poll);
+            finishStart(url);
+          }
+        }, 50);
+      };
+
       // Listen for server startup message
       this.process.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString();
-        
+        capturePassword(stdout);
+
         // Debug: Print server output
         if (this.config.debug) {
           console.log('[Server STDOUT]:', data.toString().trim());
         }
-        
+
         // Look for "opencode server listening on http://..." (v1) or
         // "server listening on http://..." (v2) — pattern covers both.
         const match = stdout.match(/server listening on (http:\/\/[^\s]+)/);
-        if (match && !resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          
-          const url = match[1];
-          const portMatch = url.match(/:(\d+)$/);
-          this.port = portMatch ? parseInt(portMatch[1]) : this.port;
-          this.isRunning = true;
-
-          resolve({ url, port: this.port });
+        if (match) {
+          finishWhenReady(match[1]);
         }
       });
 
       this.process.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString();
+        capturePassword(stderr);
         
         // Debug: Print server errors
         if (this.config.debug) {
@@ -190,16 +156,8 @@ export class ServerManager {
         
         // Also check stderr for the startup message (v1/v2 patterns)
         const match = stderr.match(/server listening on (http:\/\/[^\s]+)/);
-        if (match && !resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          
-          const url = match[1];
-          const portMatch = url.match(/:(\d+)$/);
-          this.port = portMatch ? parseInt(portMatch[1]) : this.port;
-          this.isRunning = true;
-
-          resolve({ url, port: this.port });
+        if (match) {
+          finishWhenReady(match[1]);
         }
       });
 
@@ -226,18 +184,6 @@ export class ServerManager {
    * Stop the opencode server
    */
   async stop(): Promise<void> {
-    // Stop SDK server if using SDK
-    if (this.sdkServer) {
-      try {
-        await this.sdkServer.close();
-        this.isRunning = false;
-        this.sdkServer = null;
-        return;
-      } catch (error) {
-        console.error('Error stopping SDK server:', error);
-      }
-    }
-
     // Stop manual process
     if (!this.process) {
       return;

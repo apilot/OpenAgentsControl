@@ -394,8 +394,10 @@ If you see this prompt during a test run, something went wrong with the test set
     const { url } = await this.server.start();
     this.logger.log(`Server started at ${url}`);
 
-    this.client = new ClientManager({ baseUrl: url });
-    this.eventHandler = new EventStreamHandler(url, this.config.projectPath);
+    // OpenCode v2 servers require Basic auth with the startup password
+    const password = this.server.getPassword() ?? undefined;
+    this.client = new ClientManager({ baseUrl: url, password });
+    this.eventHandler = new EventStreamHandler(url, this.config.projectPath, password);
 
     // Initialize multi-agent logger (always enabled, verbose only in debug mode)
     this.multiAgentLogger = new MultiAgentLogger(true, this.config.debug);
