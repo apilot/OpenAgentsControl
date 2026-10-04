@@ -1,0 +1,22 @@
+{
+  "name": "Image Specialist Smoke Suite",
+  "description": "Smoke-level validation of the image-specialist subagent: basic standalone operation and correct delegation-free behavior",
+  "version": "1.0.0",
+  "agent": "subagents/utils/image-specialist",
+  "totalTests": 1,
+  "estimatedRuntime": "1-2 minutes",
+  "coverage": {
+    "basicOperation": true
+  },
+  "tests": [
+    {
+      "id": 1,
+      "name": "Smoke Test - Basic Operation",
+      "path": "smoke-test.yaml",
+      "category": "behavior",
+      "priority": "critical",
+      "estimatedTime": "30-60s",
+      "description": "Validates basic image-specialist operation without violations"
+    }
+  ]
+}

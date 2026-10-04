@@ -219,6 +219,10 @@ temp/
 # Evaluation results
 evals/results/*
 !evals/results/.gitkeep
+# Re-include the eval agents tree: contributors with a global `agents/`
+# gitignore rule would otherwise silently exclude new files here.
+!evals/agents/
+!evals/agents/**
 
 # User-generated task files
 tasks/

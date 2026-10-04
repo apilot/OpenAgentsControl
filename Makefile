@@ -167,13 +167,13 @@ validate-evals: ## Validate all test suites
 	@cd evals/framework && npm run validate:suites:all
 	@echo "✅ Validation complete"
 
-test-golden: ## Run golden tests (8 tests, ~3-5 min)
+test-golden: ## Run golden tests (10 tests, ~3-5 min)
 	@echo "🧪 Running golden tests..."
 	@cd evals/framework && npm run eval:sdk -- --agent=openagent --pattern="**/golden/*.yaml"
 
 test-smoke: ## Run smoke test only (1 test, ~30s)
 	@echo "🧪 Running smoke test..."
-	@cd evals/framework && npm run eval:sdk -- --agent=openagent --pattern="**/golden/01-smoke-test.yaml"
+	@cd evals/framework && npm run eval:sdk -- --agent=openagent --pattern="**/golden/00-smoke-test.yaml"
 
 test-verbose: ## Run golden tests with full conversation output
 	@echo "🧪 Running golden tests (verbose)..."
