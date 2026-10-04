@@ -56,6 +56,15 @@ esac
 # Get new version
 NEW_VERSION=$(cat VERSION)
 
+# Sync workspace package versions with the root version so CLI --version
+# and other subpackage metadata never diverge from the release version.
+for pkg_dir in packages/cli packages/compatibility-layer packages/plugin-abilities evals/framework; do
+  if [ -f "$pkg_dir/package.json" ]; then
+    (cd "$pkg_dir" && npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version >/dev/null)
+  fi
+done
+echo -e "${GREEN}✅ Synced workspace package versions to ${NEW_VERSION}${NC}"
+
 echo ""
 echo -e "${GREEN}✅ Version bumped!${NC}"
 echo -e "New version: ${GREEN}${NEW_VERSION}${NC}"
