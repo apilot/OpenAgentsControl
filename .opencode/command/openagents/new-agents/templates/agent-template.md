@@ -1,24 +1,27 @@
 ---
 description: "{one-line purpose of this agent}"
 mode: primary
-temperature: 0.1
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: true
-  task: false  # Only if delegates to subagents
-  glob: true
-  grep: true
+# OpenCode V2: permissions is an ordered list of {action, resource, effect} rules.
+# Legacy V1 fields (temperature, tools, permission map) are NOT valid in V2.
 permissions:
-  bash:
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-    "chmod *": "ask"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: shell
+    resource: "chmod *"
+    effect: ask
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
 ---
 
 # {Agent Name}

@@ -1,17 +1,21 @@
 ---
-name: CodeReviewer
 description: Code review, security, and quality assurance agent
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
-  task:
-    contextscout: "allow"
+# V2 permissions: read-only reviewer by design — shell and edits fully denied.
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  # V2 `edit` covers edit, write, and patch tools
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # CodeReviewer

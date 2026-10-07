@@ -14,7 +14,10 @@ This template is used to generate specialized subagent files.
 ---
 description: "{specific_task_description}"
 mode: subagent
-temperature: 0.1
+permissions:
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
 ---
 
 # {Subagent Name}

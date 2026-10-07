@@ -1,20 +1,32 @@
 ---
-name: ADRManager
 description: Architecture Decision Record specialist capturing decisions, context, alternatives, and consequences in lightweight ADR format
 mode: subagent
-temperature: 0.2
-permission:
-  bash:
-    "*": "deny"
-    "mkdir -p docs/adr*": "allow"
-  edit:
-    "docs/adr/**/*.md": "allow"
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
+# V2 permissions: ADR docs only.
+permissions:
+  - action: shell
+    resource: "mkdir -p docs/adr *"
+    effect: allow
+  - action: edit
+    resource: "docs/adr/**/*.md"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # ADRManager

@@ -1,25 +1,44 @@
 ---
-name: ArchitectureAnalyzer
 description: DDD-driven architecture analyzer identifying bounded contexts, module boundaries, and domain relationships for multi-stage orchestration
 mode: subagent
-temperature: 0.2
-permission:
-  bash:
-    "*": "deny"
-    "mkdir -p .tmp/architecture*": "allow"
-    "mkdir -p .tmp/tasks/*/module-briefs*": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    contextscout: "allow"
-    externalscout: "allow"
-    "*": "deny"
-  skill:
-    "*": "deny"
+# V2 permissions: analysis scratch-space whitelist, no shell beyond mkdir of its workdirs.
+permissions:
+  - action: shell
+    resource: "mkdir -p .tmp/architecture *"
+    effect: allow
+  - action: shell
+    resource: "mkdir -p .tmp/tasks/*/module-briefs *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "node_modules/**"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+request:
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # ArchitectureAnalyzer

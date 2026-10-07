@@ -1,36 +1,45 @@
 ---
-name: ContextManager
 description: Context organization and lifecycle management specialist - discovers, catalogs, validates, and maintains project context structure with dependency tracking
 mode: subagent
-temperature: 0.1
-permission:
-  read:
-    "*": "allow"
-  grep:
-    "*": "allow"
-  glob:
-    "*": "allow"
-  bash:
-    "*": "deny"
-    "find .opencode/context*": "allow"
-    "ls -la .opencode/context*": "allow"
-    "mkdir -p .opencode/context*": "allow"
-    "mv .opencode/context*": "allow"
-  edit:
-    ".opencode/context/**/*.md": "allow"
-    ".opencode/context/**/*.json": "allow"
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  write:
-    ".opencode/context/**/*.md": "allow"
-    ".opencode/context/**/*.json": "allow"
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  task:
-    "*": "deny"
-    "contextscout": "allow"
+# V2 permissions: context tree maintenance only. Reads/glob/grep allowed by the V2 base policy.
+permissions:
+  - action: shell
+    resource: "find .opencode/context *"
+    effect: allow
+  - action: shell
+    resource: "ls -la .opencode/context *"
+    effect: allow
+  - action: shell
+    resource: "mkdir -p .opencode/context *"
+    effect: allow
+  - action: shell
+    resource: "mv .opencode/context *"
+    effect: allow
+  # V2 `edit` covers edit, write, and patch tools
+  - action: edit
+    resource: ".opencode/context/**/*.md"
+    effect: allow
+  - action: edit
+    resource: ".opencode/context/**/*.json"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # ContextManager

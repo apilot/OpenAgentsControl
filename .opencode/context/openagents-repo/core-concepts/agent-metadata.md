@@ -30,11 +30,11 @@ version: 1.0.0                   # ❌ Not valid OpenCode field
 author: opencode                 # ❌ Not valid OpenCode field
 tags: [development, coding]      # ❌ Not valid OpenCode field
 dependencies: []              # ❌ Not valid OpenCode field
-description: "..."               # ✅ Valid OpenCode field
-mode: primary                    # ✅ Valid OpenCode field
-temperature: 0.1                 # ✅ Valid OpenCode field
-tools: {...}                     # ✅ Valid OpenCode field
-permission: {...}                # ✅ Valid OpenCode field
+description: "..."               # ✅ Valid OpenCode V2 field
+mode: primary                    # ✅ Valid OpenCode V2 field
+request: {body: {temperature: N}} # ✅ V2 (preserved but not sent in v2.0.24)
+permissions: [...]               # ✅ Valid OpenCode V2 field (ordered list)
+# ❌ V2 legacy: temperature, top_p, prompt, permission, tools, disable, maxSteps
 ---
 ```
 
@@ -54,9 +54,10 @@ Extra inputs are not permitted, field: 'type', value: 'core'
 # Metadata stored in: .opencode/config/agent-metadata.json
 description: "Orchestration agent for complex coding, architecture, and multi-file refactoring"
 mode: primary
-temperature: 0.1
-tools: {...}
-permission: {...}
+permissions:
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
 ---
 ```
 
@@ -94,15 +95,16 @@ Based on [OpenCode documentation](https://opencode.ai/docs/agents/), these are t
 - `description` - When to use this agent (required)
 - `mode` - Agent type: `primary`, `subagent`, or `all` (defaults to `all`)
 
-### Optional Fields
-- `model` - Model override (e.g., `anthropic/claude-sonnet-4-20250514`)
-- `temperature` - Response randomness (0.0-1.0)
-- `maxSteps` - Max agentic iterations
-- `disable` - Set to `true` to disable agent
-- `prompt` - Custom prompt file path (e.g., `{file:./prompts/build.txt}`)
-- `hidden` - Hide from @ autocomplete (subagents only)
-- `tools` - Tool access configuration
-- `permission` - Permission rules for tools (v1.1.1+, replaces deprecated `permissions`)
+### Optional Fields (OpenCode V2)
+- `model` - Model override (`provider/model`, optional `#variant`)
+- `steps` - Max model steps (replaces legacy `maxSteps`)
+- `hidden` - Hide from listings (visibility only, not security)
+- `color` - UI color (six-digit hex)
+- `disabled` - Remove the agent at that config point
+- `request` - Per-agent header/body overlays (`request.body.temperature` is
+  preserved but NOT sent to the model in v2.0.24)
+- `permissions` - Ordered list of `{action, resource, effect}` rules
+  (V2: `shell`/`subagent` actions; legacy V1: `permission` map with `bash`/`task`)
 
 ### Example Valid Frontmatter
 
@@ -110,19 +112,13 @@ Based on [OpenCode documentation](https://opencode.ai/docs/agents/), these are t
 ---
 description: "Code review agent with security focus"
 mode: subagent
-model: anthropic/claude-sonnet-4-20250514
-temperature: 0.1
-tools:
-  read: true
-  grep: true
-  glob: true
-  write: false
-  edit: false
-permission:  # v1.1.1+ (singular, not plural)
-  bash:
-    "*": ask
-    "git *": allow
-  edit: deny
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
 ---
 ```
 
@@ -182,7 +178,7 @@ permission:  # v1.1.1+ (singular, not plural)
 | `version` | Yes | Version number | `"1.0.0"` |
 | `author` | Yes | Author identifier | `"opencode"` |
 | `tags` | No | Discovery tags | `["development", "coding"]` |
-| `dependencies` | No | Component dependencies | `["subagent:tester"]` |
+| `dependencies` | No | Component dependencies | `["subagent:test-engineer"]` |
 
 ---
 
@@ -203,10 +199,10 @@ touch .opencode/agent/category/my-agent.md
 ---
 description: "My agent description"
 mode: subagent
-temperature: 0.2
-tools:
-  read: true
-  write: true
+permissions:
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
 ---
 
 # Agent prompt content here
@@ -334,7 +330,7 @@ vim .opencode/config/agent-metadata.json
   "agents": {
     "my-agent": {
       "dependencies": [
-        "subagent:tester",
+        "subagent:test-engineer",
         "context:core/standards/code",
         "subagent:new-dependency"  // ← Add here
       ]
@@ -382,31 +378,44 @@ Then run:
 
 ## Migration Guide
 
-### Migrating from permissions (plural) to permission (singular)
+### Migrating from V1 permission map to V2 permissions list
 
-**OpenCode v1.1.1+ Change**: The field name changed from `permissions:` (plural) to `permission:` (singular).
+**OpenCode V2 Change**: `permission:` (singular map) is legacy. V2 uses
+`permissions:` (plural, ordered list of `{action, resource, effect}` rules),
+`shell` instead of `bash`, `subagent` instead of `task`. Legacy top-level
+fields `temperature`, `top_p`, `prompt`, `tools`, `disable`, `maxSteps` are
+not used in V2 (temperature → `request.body.temperature`).
 
-**Before** (deprecated):
-```yaml
-permissions:
-  bash:
-    "*": "deny"
-```
+**⚠️ Also remove the `name:` frontmatter key**: it is V1 legacy (not a V2
+field). In OpenCode v2.0.24 an agent file that contains `name:` has its
+`permissions` rules silently swallowed into the inert `request.body` map —
+declared denies/allows are not applied. The agent's name is its path-style ID.
 
-**After** (v1.1.1+):
+**Before** (V1 legacy):
 ```yaml
 permission:
   bash:
     "*": "deny"
 ```
 
+**After** (V2):
+```yaml
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+```
+
 **Migration Steps**:
-1. Find all agents using `permissions:` (plural)
+1. Find all agents using legacy formats:
    ```bash
-   grep -r "^permissions:" .opencode/agent/
+   grep -rE "^(permission|temperature|tools|disable|maxSteps|top_p|prompt):" .opencode/agent/
    ```
 
-2. Replace with `permission:` (singular) in each file
+2. Convert each map to an ordered rule list; broad rules first, exceptions
+   after (last match wins); `write:` merges into `edit` (V2 `edit` covers
+   edit/write/patch). For shell whitelists, drop the `"*": deny` catch-all —
+   V2 falls back to `ask` for unlisted commands.
 
 3. Verify no validation errors:
    ```bash

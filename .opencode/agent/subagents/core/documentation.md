@@ -1,20 +1,35 @@
 ---
-name: DocWriter
 description: Documentation authoring agent
 mode: subagent
-temperature: 0.2
-permission:
-  bash:
-    "*": "deny"
-  edit:
-    "plan/**/*.md": "allow"
-    "**/*.md": "allow"
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  task:
-    "*": "deny"
-    contextscout: "allow"
+# V2 permissions: docs writing within markdown, no shell.
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "plan/**/*.md"
+    effect: allow
+  - action: edit
+    resource: "**/*.md"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # DocWriter

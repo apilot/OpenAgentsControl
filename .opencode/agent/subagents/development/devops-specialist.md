@@ -1,33 +1,71 @@
 ---
-name: OpenDevopsSpecialist
 description: DevOps specialist subagent - CI/CD, infrastructure as code, deployment automation
 mode: subagent
-temperature: 0.1
-permission:
-  task:
-    "*": "deny"
-    contextscout: "allow"
-  bash:
-    "*": "deny"
-    "docker build *": "allow"
-    "docker compose up *": "allow"
-    "docker compose down *": "allow"
-    "docker ps *": "allow"
-    "docker logs *": "allow"
-    "kubectl apply *": "allow"
-    "kubectl get *": "allow"
-    "kubectl describe *": "allow"
-    "kubectl logs *": "allow"
-    "terraform init *": "allow"
-    "terraform plan *": "allow"
-    "terraform apply *": "ask"
-    "terraform validate *": "allow"
-    "npm run build *": "allow"
-    "npm run test *": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
+# V2 permissions: infra command whitelist, no unscoped delegation.
+permissions:
+  - action: shell
+    resource: "docker build *"
+    effect: allow
+  - action: shell
+    resource: "docker compose up *"
+    effect: allow
+  - action: shell
+    resource: "docker compose down *"
+    effect: allow
+  - action: shell
+    resource: "docker ps *"
+    effect: allow
+  - action: shell
+    resource: "docker logs *"
+    effect: allow
+  - action: shell
+    resource: "kubectl apply *"
+    effect: allow
+  - action: shell
+    resource: "kubectl get *"
+    effect: allow
+  - action: shell
+    resource: "kubectl describe *"
+    effect: allow
+  - action: shell
+    resource: "kubectl logs *"
+    effect: allow
+  - action: shell
+    resource: "terraform init *"
+    effect: allow
+  - action: shell
+    resource: "terraform plan *"
+    effect: allow
+  - action: shell
+    resource: "terraform apply *"
+    effect: ask
+  - action: shell
+    resource: "terraform validate *"
+    effect: allow
+  - action: shell
+    resource: "npm run build *"
+    effect: allow
+  - action: shell
+    resource: "npm run test *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # DevOps Specialist Subagent

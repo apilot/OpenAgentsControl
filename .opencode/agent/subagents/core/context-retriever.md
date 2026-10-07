@@ -1,15 +1,17 @@
 ---
-name: Context Retriever
 description: Generic context search and retrieval specialist for finding relevant context files, standards, and guides in any repository
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
+# V2 permissions: read-only retrieval specialist.
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Context Retriever Agent

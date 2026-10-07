@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: CommandCreator
 description: "Creates custom slash commands that route to appropriate agents with clear syntax and examples"
 mode: subagent
-temperature: 0.1
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Command Creator

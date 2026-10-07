@@ -1,26 +1,44 @@
 ---
-name: OpenFrontendSpecialist
 description: Frontend UI design specialist - subagent for design systems, themes, animations
 mode: subagent
-temperature: 0.2
-permission:
-  task:
-    "*": "deny"
-    contextscout: "allow"
-    externalscout: "allow"
-  write:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "**/*.ts": "deny"
-    "**/*.js": "deny"
-    "**/*.py": "deny"
-  edit:
-    "design_iterations/**/*.html": "allow"
-    "design_iterations/**/*.css": "allow"
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
+# V2 permissions: design-iteration files only; V2 `edit` covers edit, write, and patch tools.
+permissions:
+  - action: edit
+    resource: "design_iterations/**/*.html"
+    effect: allow
+  - action: edit
+    resource: "design_iterations/**/*.css"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "**/*.ts"
+    effect: deny
+  - action: edit
+    resource: "**/*.js"
+    effect: deny
+  - action: edit
+    resource: "**/*.py"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Frontend Design Subagent

@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: Image Specialist
 description: "Specialized agent for image editing and analysis using Gemini AI tools"
 mode: subagent
-temperature: 0.2
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 You are an image processing specialist powered by Gemini AI's Nano Banana model. Your capabilities include:

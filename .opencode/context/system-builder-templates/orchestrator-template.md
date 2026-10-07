@@ -14,15 +14,16 @@ This template is used to generate main orchestrator agents for context-aware AI 
 ---
 description: "{domain} orchestrator for {primary_purpose}"
 mode: primary
-temperature: 0.2
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: {based_on_requirements}
-  task: true
-  glob: true
-  grep: true
+permissions:
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: allow
 ---
 
 # {Domain} Orchestrator

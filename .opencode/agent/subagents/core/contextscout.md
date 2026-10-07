@@ -1,22 +1,17 @@
 ---
-name: ContextScout
 description: Discovers and recommends context files from .opencode/context/ ranked by priority. Suggests ExternalScout when a framework/library is mentioned but not found internally.
 mode: subagent
-permission:
-  read:
-    "*": "allow"
-  grep:
-    "*": "allow"
-  glob:
-    "*": "allow"
-  bash:
-    "*": "deny"
-  edit:
-    "*": "deny"
-  write:
-    "*": "deny"
-  task:
-    "*": "deny"
+# V2 permissions: fully read-only scout.
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
 
 ---
 
@@ -26,6 +21,9 @@ permission:
 
   <rule id="context_root">
     The context root is determined by paths.json (loaded via @ reference). Default is `.opencode/context/`. If custom_dir is set in paths.json, use that instead. Start by reading `{context_root}/navigation.md`. Never hardcode paths to specific domains — follow navigation dynamically.
+  </rule>
+  <rule id="hidden_dirs">
+    `.opencode/` is a dot-directory: the glob tool skips hidden files/dirs unless `hidden: true` is passed. EVERY glob whose pattern touches `.opencode/**` MUST pass `hidden: true`, otherwise matches silently come back empty and the context root looks absent. If glob still finds nothing, confirm with a direct `read` of the expected file before concluding it does not exist.
   </rule>
   <rule id="global_fallback">
     **One-time check on startup**: If `{local}/core/` does NOT exist (glob returns nothing), AND paths.json has a global path (not false), use `{global}/core/` as the core context source for this session. This handles users who installed OAC globally but work in a local project.
@@ -49,6 +47,7 @@ permission:
   </rule>
   <tier level="1" desc="Critical Operations">
     - @context_root: Navigation-driven discovery only — no hardcoded paths
+    - @hidden_dirs: glob over `.opencode/**` requires `hidden: true` (dot-directory)
     - @global_fallback: Resolve core location once at startup (max 2 glob checks)
     - @read_only: Only read, grep, glob — nothing else
     - @verify_before_recommend: Confirm every path exists before returning it

@@ -1,5 +1,5 @@
-<!-- Context: openagents-repo/standards/permission-patterns | Priority: critical | Version: 1.0 | Updated: 2026-02-01 -->
-# Standard: Permission Patterns for OpenCode v1.1.1+
+<!-- Context: openagents-repo/standards/permission-patterns | Priority: critical | Version: 2.0 | Updated: 2026-10-07 -->
+# Standard: Permission Patterns for OpenCode V2
 
 **Purpose**: Comprehensive permission configuration patterns for different agent types  
 **Priority**: CRITICAL - Load this before configuring agent permissions
@@ -8,57 +8,73 @@
 
 ## Core Principle
 
-OpenCode v1.1.1+ uses `permission:` (singular) with granular control over tool access. Rules follow **last-matching-wins** evaluation order.
+OpenCode V2 uses `permissions:` (plural) — an **ordered list** of rules with three string fields:
+
+```yaml
+permissions:
+  - action: shell
+    resource: "git push *"
+    effect: deny
+```
+
+| Field | Meaning |
+|-------|---------|
+| `action` | Tool permission action (`shell`, `edit`, `subagent`, …) |
+| `resource` | Matched value: path, command, URL, skill ID, agent ID |
+| `effect` | `allow`, `ask`, or `deny` |
 
 **Why**: Granular permissions prevent unintended actions while allowing necessary operations.
 
 ---
 
-## Permission Evaluation Order
+## Evaluation Rules (V2)
 
-**Last matching rule wins** - Common pattern:
-1. Catch-all `"*"` first (default behavior)
-2. Specific overrides after (take precedence)
+1. **Last matching rule wins** — put broad rules FIRST, specific exceptions AFTER.
+2. **No match → `ask`** (not deny).
+3. Every agent starts from the base policy: allow-all, plus `ask` for
+   `external_directory` and `.env` file reads.
+4. A shell pattern ending in ` *` also matches the command **without arguments**
+   (`"git status *"` matches both `git status` and `git status --short`).
+5. A custom subagent uses **its own permissions**, not a subset of its parent's.
+6. Operations may check several resources (e.g. a multi-file patch): any `deny`
+   denies, otherwise any `ask` asks, otherwise allow.
 
-Example:
 ```yaml
-permission:
-  bash:
-    "*": "deny"              # Catch-all: deny all bash
-    "git status*": "allow"   # Override: allow git status
-    "git diff*": "allow"     # Override: allow git diff
+# Broad rule first, exceptions after (last match wins):
+permissions:
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "git status *"
+    effect: allow
+  - action: shell
+    resource: "git push *"
+    effect: deny
 ```
 
 ---
 
-## Valid Permission Keys
+## Valid Actions and Resources (V2)
 
-| Key | Description | Granular? | Default |
-|-----|-------------|-----------|---------|
-| `read` | File reading | Yes (path globs) | `"allow"` |
-| `edit` | File modifications | Yes (path globs) | `"allow"` |
-| `glob` | File globbing/searches | Yes | `"allow"` |
-| `grep` | Content/regex search | Yes | `"allow"` |
-| `list` | Directory listing | Yes | `"allow"` |
-| `bash` | Shell commands | Yes (command globs) | `"allow"` |
-| `task` | Subagent launches | Yes (subagent type) | `"allow"` |
-| `skill` | Skill loading | Yes | `"allow"` |
-| `lsp` | LSP queries | No | `"allow"` |
-| `todoread` | Todo list read | No | `"allow"` |
-| `todowrite` | Todo list update | No | `"allow"` |
-| `webfetch` | URL fetching | Yes | `"allow"` |
-| `websearch` | Web search | Yes | `"allow"` |
-| `codesearch` | Code search | Yes | `"allow"` |
-| `external_directory` | Out-of-project paths | Yes | `"ask"` |
-| `doom_loop` | Repeated identical calls | Yes | `"ask"` |
+| Action | Resource |
+|--------|----------|
+| `read` | File path |
+| `edit` | Target path — **covers `edit`, `write`, and `patch` tools** |
+| `glob` | Requested glob pattern |
+| `grep` | Requested regular expression |
+| `shell` | Command string (was `bash` in V1) |
+| `subagent` | Target agent ID (was `task` in V1) |
+| `skill` | Skill ID |
+| `question` | `*` |
+| `webfetch` | Requested URL |
+| `websearch` | Search query |
+| `external_directory` | Canonical external directory (normally `…/*`) |
+| `execute` | `*` — controls Code Mode availability |
 
----
-
-## Valid Actions
-
-- `"allow"` - Executes without approval
-- `"ask"` - Prompts user (options: once, always, reject)
-- `"deny"` - Blocks immediately
+V1 → V2 renames: `bash` → `shell`, `task` → `subagent`, `permission:` → `permissions:`.
+Legacy top-level fields **not used in V2**: `temperature`, `top_p`, `prompt`,
+`permission`, `tools`, `disable`, `maxSteps`.
 
 ---
 
@@ -69,58 +85,63 @@ permission:
 **Use case**: Code review, analysis, security audits
 
 ```yaml
-permission:
-  bash:
-    "*": "deny"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
 ```
 
 **Examples**: CodeReviewer, SecurityAuditor
 
 ---
 
-### Write-Enabled Agents (Coders, Testers)
+### Whitelist Agents (Testers, Builders)
 
-**Use case**: Code implementation, test authoring
+**Use case**: Agents that may run only specific commands.
 
 ```yaml
-permission:
-  bash:
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-    "chmod *": "ask"
-    "curl *": "ask"
-    "wget *": "ask"
-    "docker *": "ask"
-    "kubectl *": "ask"
-    # Test-specific commands (for testers)
-    "npx vitest *": "allow"
-    "npx jest *": "allow"
-    "pytest *": "allow"
-    "npm test *": "allow"
-    "go test *": "allow"
-    "cargo test *": "allow"
-    "*": "deny"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    "**/__pycache__/**": "deny"
-    "**/*.pyc": "deny"
-    ".git/**": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
+permissions:
+  # Allowlist only — NO catch-all shell deny.
+  # In V2 unlisted commands fall back to `ask`; a `"*": deny` catch-all
+  # can hide the shell tool entirely for custom subagents.
+  - action: shell
+    resource: "npx vitest *"
+    effect: allow
+  - action: shell
+    resource: "pytest *"
+    effect: allow
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
 ```
 
-**Examples**: CoderAgent, TestEngineer, BuildAgent
+**Examples**: TestEngineer, BuildAgent, CoderAgent
+
+> **Compromise note**: migrating a V1 `"*": "deny"` shell catch-all to V2 changes
+> the fallback for unlisted commands from `deny` to `ask`. This is deliberate —
+> the catch-all removed the shell tool entirely in v2.0.24. If hard-deny semantics
+> are required, add the catch-all explicitly and verify the tool stays available.
 
 ---
 
@@ -129,47 +150,25 @@ permission:
 **Use case**: Workflow orchestration, task delegation
 
 ```yaml
-permission:
-  bash:
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-    "chmod *": "ask"
-    "*": "ask"  # More permissive for orchestration
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    "*": "allow"  # Can delegate to any subagent
+permissions:
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "rm -rf /*"
+    effect: deny
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: allow
 ```
 
 **Examples**: OpenCoder, OpenAgent, TaskManager
-
----
-
-### Restricted Bash Agents (Specific Commands Only)
-
-**Use case**: Agents that need only specific bash commands
-
-```yaml
-permission:
-  bash:
-    "git status*": "allow"
-    "git diff*": "allow"
-    "git log*": "allow"
-    "ls *": "allow"
-    "cat *": "allow"
-    "*": "deny"
-  edit:
-    "**/*.env*": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
-```
-
-**Examples**: ExternalScout, ContextScout
 
 ---
 
@@ -178,72 +177,80 @@ permission:
 ### Always Deny Sensitive Files
 
 ```yaml
-permission:
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "**/*.pem": "deny"
-    "**/*.crt": "deny"
-    "**/credentials*": "deny"
+permissions:
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
 ```
+
+Note: the V2 base policy already asks before reading `.env` files; explicit
+edit-deny rules block writing them.
 
 ### Always Deny Dangerous Commands
 
 ```yaml
-permission:
-  bash:
-    "sudo *": "deny"
-    "rm -rf /*": "deny"
-    "chmod 777 *": "deny"
-    "curl * | bash": "deny"
-    "wget * | sh": "deny"
+permissions:
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: shell
+    resource: "rm -rf /*"
+    effect: deny
 ```
 
 ### Always Ask for Destructive Operations
 
 ```yaml
-permission:
-  bash:
-    "rm -rf *": "ask"
-    "git push --force*": "ask"
-    "docker system prune*": "ask"
-    "npm publish*": "ask"
+permissions:
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "git push --force *"
+    effect: ask
+  - action: shell
+    resource: "npm publish *"
+    effect: ask
 ```
 
 ---
 
-## Task Permission Patterns
+## Subagent Permission Patterns
+
+Agent IDs are path-style in nested directories
+(`.opencode/agent/subagents/core/contextscout.md` → `subagents/core/contextscout`).
 
 ### Allow Specific Subagents Only
 
 ```yaml
-permission:
-  task:
-    contextscout: "allow"
-    externalscout: "allow"
-    "*": "deny"
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
 ```
 
 ### Allow All Except Specific
 
 ```yaml
-permission:
-  task:
-    "*": "allow"
-    "dangerous-agent": "deny"
+permissions:
+  - action: subagent
+    resource: "subagents/legacy-agent"
+    effect: deny
 ```
 
-### Ask for Orchestration Agents
-
-```yaml
-permission:
-  task:
-    contextscout: "allow"      # Always allow context discovery
-    "coder-agent": "ask"        # Ask before code generation
-    "build-agent": "ask"        # Ask before builds
-    "*": "deny"
-```
+(Unlisted subagents are already allowed by the base policy — no catch-all needed.)
 
 ---
 
@@ -253,65 +260,58 @@ permission:
 
 ```yaml
 ---
-name: CodeReviewer
 description: Code review, security, and quality assurance agent
 mode: subagent
-temperature: 0.1
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: false
-  edit: false
-  write: false
-  task: true
-permission:
-  bash:
-    "*": "deny"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
 ---
 ```
 
-### Example 2: Test Engineer (Write-Enabled)
+### Example 2: Test Engineer (Whitelist)
 
 ```yaml
 ---
-name: TestEngineer
 description: Test authoring and TDD agent
 mode: subagent
-temperature: 0.1
-tools:
-  read: true
-  grep: true
-  glob: true
-  edit: true
-  write: true
-  bash: true
-  task: true
-permission:
-  bash:
-    "npx vitest *": "allow"
-    "npx jest *": "allow"
-    "pytest *": "allow"
-    "npm test *": "allow"
-    "go test *": "allow"
-    "cargo test *": "allow"
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-    "*": "deny"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  task:
-    contextscout: "allow"
-    "*": "deny"
+permissions:
+  - action: shell
+    resource: "npx vitest *"
+    effect: allow
+  - action: shell
+    resource: "pytest *"
+    effect: allow
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
 ---
 ```
 
@@ -319,35 +319,21 @@ permission:
 
 ```yaml
 ---
-name: OpenCoder
 description: Orchestration agent for complex coding
 mode: primary
-temperature: 0.1
-tools:
-  task: true
-  read: true
-  edit: true
-  write: true
-  grep: true
-  glob: true
-  bash: true
-permission:
-  bash:
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-    "chmod *": "ask"
-    "curl *": "ask"
-    "wget *": "ask"
-    "docker *": "ask"
-    "kubectl *": "ask"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    "*": "allow"
+permissions:
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
 ---
 ```
 
@@ -355,24 +341,26 @@ permission:
 
 ## Validation Checklist
 
-- [ ] Using `permission:` (singular, not `permissions:`)
-- [ ] Catch-all rules (`"*"`) come FIRST
-- [ ] Specific overrides come AFTER catch-all
+- [ ] Using `permissions:` (plural, ordered **list**) — V2; `permission:` maps are V1 legacy
+- [ ] **NO `name:` key in frontmatter** — V1 legacy; in v2.0.24 it breaks permissions resolution
+- [ ] Actions renamed: `shell` (not `bash`), `subagent` (not `task`)
+- [ ] Broad rules FIRST, specific exceptions AFTER (last match wins)
+- [ ] No legacy top-level fields (`temperature`, `tools`, `disable`, `maxSteps`, `top_p`, `prompt`)
 - [ ] Sensitive files denied (`**/*.env*`, `**/*.key`, `**/*.secret`)
 - [ ] Dangerous commands denied (`sudo *`, `rm -rf /*`)
-- [ ] Destructive operations ask (`rm -rf *`, `git push --force*`)
-- [ ] Task permissions appropriate for agent type
-- [ ] Valid actions only (`"allow"`, `"ask"`, `"deny"`)
+- [ ] Destructive operations ask (`rm -rf *`, `git push --force *`)
+- [ ] Whitelist agents: no catch-all `shell "*": deny` (fallback is `ask` anyway)
+- [ ] Subagent IDs are path-style (`subagents/core/contextscout`)
+- [ ] Valid effects only (`allow`, `ask`, `deny`)
 
 ---
 
 ## Related
 
-- **Agent Frontmatter**: `standards/agent-frontmatter.md`
 - **Subagent Structure**: `standards/subagent-structure.md`
 - **Security Patterns**: `../../core/standards/security-patterns.md`
-- **OpenCode Docs**: https://opencode.ai/docs/permissions/
+- **OpenCode V2 Docs**: https://opencode.ai/v2/docs/permissions/
 
 ---
 
-**Last Updated**: 2026-02-01 | **Version**: 1.0.0
+**Last Updated**: 2026-10-07 | **Version**: 2.0.0

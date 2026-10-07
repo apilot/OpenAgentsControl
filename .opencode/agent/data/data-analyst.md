@@ -1,8 +1,9 @@
 ---
-name: OpenDataAnalyst
 description: "Expert in data analysis, visualization, and statistical insights"
 mode: primary
-temperature: 0.1
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Data Analyst

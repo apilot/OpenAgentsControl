@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: OpenCopywriter
 description: "Expert in persuasive writing, marketing copy, and brand messaging"
 mode: primary
-temperature: 0.3
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.3 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Copywriter

@@ -1,30 +1,76 @@
 ---
-name: TestEngineer
 description: Test authoring and TDD agent
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-    "npx vitest *": "allow"
-    "npx jest *": "allow"
-    "pytest *": "allow"
-    "npm test *": "allow"
-    "npm run test *": "allow"
-    "yarn test *": "allow"
-    "pnpm test *": "allow"
-    "bun test *": "allow"
-    "go test *": "allow"
-    "cargo test *": "allow"
-    "rm -rf *": "ask"
-    "sudo *": "deny"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-  task:
-    contextscout: "allow"
-    externalscout: "allow"
+# V2 permissions: ordered rules, last match wins; unlisted actions fall back to `ask`.
+# No catch-all shell deny: unlisted commands ask instead of deny (see docs/tasks/2026-10-07-v2-permissions-migration.md).
+permissions:
+  # Test runners (pattern "cmd *" also matches bare "cmd")
+  - action: shell
+    resource: "bundle exec rspec *"
+    effect: allow
+  - action: shell
+    resource: "bin/rspec *"
+    effect: allow
+  - action: shell
+    resource: "bin/rails test *"
+    effect: allow
+  - action: shell
+    resource: "npx vitest *"
+    effect: allow
+  - action: shell
+    resource: "npx jest *"
+    effect: allow
+  - action: shell
+    resource: "pytest *"
+    effect: allow
+  - action: shell
+    resource: "npm test *"
+    effect: allow
+  - action: shell
+    resource: "npm run test *"
+    effect: allow
+  - action: shell
+    resource: "yarn test *"
+    effect: allow
+  - action: shell
+    resource: "pnpm test *"
+    effect: allow
+  - action: shell
+    resource: "bun test *"
+    effect: allow
+  - action: shell
+    resource: "go test *"
+    effect: allow
+  - action: shell
+    resource: "cargo test *"
+    effect: allow
+  # Safety guardrails
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  # Secrets
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  # Delegable scouts
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # TestEngineer

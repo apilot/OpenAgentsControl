@@ -26,22 +26,23 @@ Or agent tries to use a tool but gets blocked silently (0 tool calls).
 
 ### Cause
 
-Agent has tool **disabled** or **denied** in frontmatter:
+Agent has the action **denied** in frontmatter (V2):
 
 ```yaml
-# In agent frontmatter
-tools:
-  bash: false    # ← Tool disabled
-
-permission:
-  bash:
-    "*": "deny"  # ← Explicitly denied
+# In agent frontmatter (V2 permissions list)
+permissions:
+  - action: shell
+    resource: "*"
+    effect: deny   # ← Explicitly denied
 ```
 
 **How it works**:
-- `bash: false` means agent doesn't have access to bash tool
-- Framework enforces this - agent can't use bash even if prompt says to
+- A `deny` rule blocks the operation for that agent
+- Framework enforces this - agent can't run shell even if prompt says to
 - NOT an approval issue - it's a permission restriction
+- V1 legacy note: a `permission:` map with `bash:` entries is not understood by
+  V2 and can cause the whole shell tool to be stripped from a custom subagent —
+  migrate to the V2 `permissions` list
 
 ---
 
@@ -67,55 +68,52 @@ Add critical rules section at top of agent prompt:
 
 **Why this works**: Makes tool restrictions crystal clear in first 15% of prompt.
 
-**Option 2: Enable Tool** (If agent needs it)
+**Option 2: Allow the Action** (If agent needs it)
 
 ```yaml
-tools:
-  bash: true  # ← Enable if agent legitimately needs bash
+permissions:
+  # Whitelist only what the agent truly needs (V2: unlisted commands ask)
+  - action: shell
+    resource: "bundle exec rspec *"
+    effect: allow
 ```
 
-**Warning**: Only enable if agent truly needs the tool. Read-only subagents should NOT have bash/write/edit.
+**Warning**: Only allow what the agent truly needs. Read-only subagents should NOT have shell/edit allows.
 
 ---
 
 ### Prevention
 
-**For Read-Only Subagents**:
+**For Read-Only Subagents** (V2):
 
 ```yaml
-# Correct configuration for read-only subagents
-tools:
-  read: true
-  grep: true
-  glob: true
-  list: true
-  bash: false    # ← No execution
-  edit: false    # ← No modifications
-  write: false   # ← No file creation
-  task: false    # ← No delegation (subagents don't delegate)
-
+# Correct configuration for read-only subagents (V2)
 permissions:
-  bash:
-    "*": "deny"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
+  - action: shell
+    resource: "*"
+    effect: deny    # ← No execution
+  - action: edit
+    resource: "*"
+    effect: deny    # ← No modifications (covers edit, write, patch)
+  - action: subagent
+    resource: "*"
+    effect: deny    # ← No delegation
 ```
 
-**For Primary Agents**:
+**For Primary Agents** (V2):
 
 ```yaml
-# Primary agents may need execution tools
-tools:
-  read: true
-  grep: true
-  glob: true
-  list: true
-  bash: true     # ← May need for operations
-  edit: true     # ← May need for modifications
-  write: true    # ← May need for file creation
-  task: true     # ← May delegate to subagents
+# Primary agents: base policy allows tools; add targeted guardrails
+permissions:
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: shell
+    resource: "rm -rf *"
+    effect: ask
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
 ```
 
 ---
@@ -160,9 +158,9 @@ approvalStrategy:
   type: auto-approve  # ← No approval gates for subagents
 ```
 
-**Fix 3: Check Tool Permissions**
+**Fix 3: Check Permissions**
 
-Ensure subagent has `bash: false` in frontmatter.
+Ensure the subagent denies the shell action in its V2 `permissions` list (`action: shell, resource: "*", effect: deny`).
 
 ---
 

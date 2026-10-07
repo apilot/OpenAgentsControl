@@ -1,16 +1,26 @@
 ---
-name: WorkflowDesigner
 description: Designs complete workflow definitions with context dependencies and success criteria
 mode: subagent
-temperature: 0.1
-permission:
-  task:
-    "*": "deny"
-    contextscout: "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
+# V2 permissions: workflow docs generation, single scout delegation.
+permissions:
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Workflow Designer

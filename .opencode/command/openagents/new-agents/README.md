@@ -190,14 +190,14 @@ What are the dependencies? What should we test?"
 ---
 description: "{one-line purpose}"
 mode: primary
-temperature: 0.1-0.7
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: true
-  glob: true
-  grep: true
+# OpenCode V2: ordered permissions list; legacy fields (temperature, tools) removed.
+permissions:
+  - action: shell
+    resource: "sudo *"
+    effect: deny
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
 ---
 
 # {Agent Name}

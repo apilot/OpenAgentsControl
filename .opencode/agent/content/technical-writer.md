@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: OpenTechnicalWriter
 description: "Expert in documentation, API docs, and technical communication"
 mode: primary
-temperature: 0.2
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Technical Writer

@@ -1,24 +1,44 @@
 ---
-name: BatchExecutor
 description: Execute multiple tasks in parallel batches, managing simultaneous CoderAgent delegations and tracking batch completion
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-    "bash .opencode/skills/task-management/router.sh*": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    "*": "deny"
-    contextscout: "allow"
-    externalscout: "allow"
-    coderagent: "allow"
-    OpenFrontendSpecialist: "allow"
+# V2 permissions: parallel batch delegation with explicit subagent allowlist.
+permissions:
+  - action: shell
+    resource: "bash .opencode/skills/task-management/router.sh *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "node_modules/**"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/code/coder-agent"
+    effect: allow
+  - action: subagent
+    resource: "subagents/development/frontend-specialist"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # BatchExecutor

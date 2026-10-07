@@ -1,24 +1,41 @@
 ---
-name: ContractManager
 description: API contract management specialist enabling parallel development through contract-first design with OpenAPI/Swagger support
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-    "mkdir -p .tmp/contracts*": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    contextscout: "allow"
-    externalscout: "allow"
-    "*": "deny"
-  skill:
-    "*": "deny"
+# V2 permissions: contracts scratch-space whitelist.
+permissions:
+  - action: shell
+    resource: "mkdir -p .tmp/contracts *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "node_modules/**"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 <context>

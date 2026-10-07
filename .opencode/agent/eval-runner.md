@@ -1,14 +1,15 @@
 ---
 # OpenCode Agent Configuration
 id: eval-runner
-name: Eval Runner
 description: "Test harness for evaluation framework - DO NOT USE DIRECTLY"
 category: testing
 type: utility
 version: 1.0.0
 author: opencode
 mode: subagent
-temperature: 0.2
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.2 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Eval Runner - Test Harness

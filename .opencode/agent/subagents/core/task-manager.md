@@ -1,27 +1,50 @@
 ---
-name: TaskManager
 description: JSON-driven task breakdown specialist transforming complex features into atomic, verifiable subtasks with dependency tracking and CLI integration
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-    "bash .opencode/skills/task-management/router.sh*": "allow"
-    "mkdir -p .tmp/tasks*": "allow"
-    "mv .tmp/tasks*": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    "*": "deny"
-    contextscout: "allow"
-    externalscout: "allow"
-  skill:
-    "*": "deny"
-    "task-management": "allow"
+# V2 permissions: task-management CLI whitelist, no unscoped delegation.
+permissions:
+  - action: shell
+    resource: "bash .opencode/skills/task-management/router.sh *"
+    effect: allow
+  - action: shell
+    resource: "mkdir -p .tmp/tasks *"
+    effect: allow
+  - action: shell
+    resource: "mv .tmp/tasks *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "node_modules/**"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "task-management"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 <context>

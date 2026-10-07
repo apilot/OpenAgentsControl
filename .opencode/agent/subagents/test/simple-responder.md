@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: Simple Responder
 description: "Test agent that responds with 'AWESOME TESTING' - for eval framework testing"
 mode: subagent
-temperature: 0.0
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.0 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Simple Responder - Test Agent

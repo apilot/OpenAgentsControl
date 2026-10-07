@@ -1,27 +1,48 @@
 ---
-name: BuildAgent
 description: Type check and build validation agent
 mode: subagent
-temperature: 0.1
-permission:
-  bash:
-    "*": "deny"
-    "tsc": "allow"
-    "mypy": "allow"
-    "go build": "allow"
-    "cargo check": "allow"
-    "cargo build": "allow"
-    "npm run build": "allow"
-    "yarn build": "allow"
-    "pnpm build": "allow"
-    "python -m build": "allow"
-  edit:
-    "**/*": "deny"
-  write:
-    "**/*": "deny"
-  task:
-    "*": "deny"
-    contextscout: "allow"
+# V2 permissions: build/type-check whitelist. No catch-all shell deny — unlisted commands ask (V2 default).
+permissions:
+  - action: shell
+    resource: "tsc *"
+    effect: allow
+  - action: shell
+    resource: "mypy *"
+    effect: allow
+  - action: shell
+    resource: "go build *"
+    effect: allow
+  - action: shell
+    resource: "cargo check *"
+    effect: allow
+  - action: shell
+    resource: "cargo build *"
+    effect: allow
+  - action: shell
+    resource: "npm run build *"
+    effect: allow
+  - action: shell
+    resource: "yarn build *"
+    effect: allow
+  - action: shell
+    resource: "pnpm build *"
+    effect: allow
+  - action: shell
+    resource: "python -m build *"
+    effect: allow
+  # V2 `edit` covers edit, write, and patch tools
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+request:
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # BuildAgent

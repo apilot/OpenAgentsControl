@@ -10,12 +10,14 @@
 
 ```markdown
 ---
-name: AgentName
 description: Brief description
 mode: subagent
-temperature: 0.1
-tools: {...}
-permissions: {...}
+# V2: permissions is an ordered list of {action, resource, effect} rules.
+# Do NOT use a `name:` key — it is V1 legacy and in OpenCode v2.0.24 it breaks
+# permissions resolution (rules get swallowed into request.body and ignored).
+# The agent name is its path-style ID. Legacy fields (temperature, tools,
+# permission map) are not used either.
+permissions: [...]
 ---
 
 # AgentName
@@ -93,27 +95,32 @@ status: "success" | "failure"
 
 ### Read-Only (Reviewers, Analyzers)
 ```yaml
-tools: {read: true, grep: true, glob: true, bash: false, edit: false, write: false}
+# V2: `edit` covers edit/write/patch; `shell` replaces V1 `bash`; `subagent` replaces V1 `task`.
 permissions:
-  bash: {"*": "deny"}
-  edit: {"**/*": "deny"}
-  task: {contextscout: "allow", "*": "deny"}
+  - {action: shell, resource: "*", effect: deny}
+  - {action: edit, resource: "*", effect: deny}
+  - {action: subagent, resource: "*", effect: deny}
+  - {action: subagent, resource: "subagents/core/contextscout", effect: allow}
 ```
 
 ### Write-Enabled (Coders, Testers)
 ```yaml
-tools: {read: true, edit: true, write: true, bash: true}
+# V2: whitelist without catch-all shell deny — unlisted commands ask (V2 default).
 permissions:
-  bash: {"npm test *": "allow", "git *": "allow", "sudo *": "deny", "*": "deny"}
-  edit: {"**/*.env*": "deny", "**/*.key": "deny"}
-  task: {contextscout: "allow", "*": "deny"}
+  - {action: shell, resource: "npm test *", effect: allow}
+  - {action: shell, resource: "git status *", effect: allow}
+  - {action: shell, resource: "sudo *", effect: deny}
+  - {action: edit, resource: "**/*.env*", effect: deny}
+  - {action: edit, resource: "**/*.key", effect: deny}
+  - {action: subagent, resource: "*", effect: deny}
+  - {action: subagent, resource: "subagents/core/contextscout", effect: allow}
 ```
 
-### Restricted Bash (Task Managers)
+### Restricted Shell (Task Managers)
 ```yaml
-tools: {read: true, bash: true}
 permissions:
-  bash: {"bash .opencode/skills/task-management/router.sh*": "allow", "mkdir -p .tmp/tasks*": "allow", "*": "deny"}
+  - {action: shell, resource: "bash .opencode/skills/task-management/router.sh *", effect: allow}
+  - {action: shell, resource: "mkdir -p .tmp/tasks *", effect: allow}
 ```
 
 ---
@@ -162,12 +169,11 @@ permissions:
 ```
 
 **Security Pattern**:
-```markdown
+```yaml
 permissions:
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
+  - {action: edit, resource: "**/*.env*", effect: deny}
+  - {action: edit, resource: "**/*.key", effect: deny}
+  - {action: edit, resource: "**/*.secret", effect: deny}
 ```
 
 ---

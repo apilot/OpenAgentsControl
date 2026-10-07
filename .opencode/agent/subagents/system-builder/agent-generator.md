@@ -3,10 +3,11 @@
 # Metadata (id, name, category, type, version, author, tags, dependencies) is stored in:
 # .opencode/config/agent-metadata.json
 
-name: AgentGenerator
 description: "Generates XML-optimized agent files (orchestrator and subagents) following research-backed patterns"
 mode: subagent
-temperature: 0.1
+request:  # V2 replacement for legacy top-level `temperature`
+  body:
+    temperature: 0.1 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # Agent Generator
@@ -82,15 +83,16 @@ temperature: 0.1
       ---
       description: "{purpose}"
       mode: primary
-      temperature: 0.2
-      tools:
-        read: true
-        write: true
-        edit: true
-        bash: {based on requirements}
-        task: true
-        glob: true
-        grep: true
+      permissions:
+        - action: shell
+          resource: "rm -rf *"
+          effect: ask
+        - action: shell
+          resource: "sudo *"
+          effect: deny
+        - action: subagent
+          resource: "*"
+          effect: allow
       ---
       
       # {Domain} Orchestrator
@@ -195,7 +197,10 @@ temperature: 0.1
       ---
       description: "{specific task this subagent performs}"
       mode: subagent
-      temperature: 0.1
+      permissions:
+        - action: edit
+          resource: "**/*.env*"
+          effect: deny
       ---
       
       # {Subagent Name}

@@ -1,24 +1,44 @@
 ---
-name: CoderAgent
 description: Executes coding subtasks in sequence, ensuring completion as specified
 mode: subagent
-temperature: 0
-permission:
-  bash:
-    "*": "deny"
-    "bash .opencode/skills/task-management/router.sh complete*": "allow"
-    "bash .opencode/skills/task-management/router.sh verify*": "allow"
-    "bash .opencode/skills/task-management/router.sh status*": "allow"
-  edit:
-    "**/*.env*": "deny"
-    "**/*.key": "deny"
-    "**/*.secret": "deny"
-    "node_modules/**": "deny"
-    ".git/**": "deny"
-  task:
-    contextscout: "allow"
-    externalscout: "allow"
-    TestEngineer: "allow"
+# V2 permissions: task-management CLI whitelist. Unlisted shell commands ask (V2 default).
+permissions:
+  - action: shell
+    resource: "bash .opencode/skills/task-management/router.sh complete *"
+    effect: allow
+  - action: shell
+    resource: "bash .opencode/skills/task-management/router.sh verify *"
+    effect: allow
+  - action: shell
+    resource: "bash .opencode/skills/task-management/router.sh status *"
+    effect: allow
+  - action: edit
+    resource: "**/*.env*"
+    effect: deny
+  - action: edit
+    resource: "**/*.key"
+    effect: deny
+  - action: edit
+    resource: "**/*.secret"
+    effect: deny
+  - action: edit
+    resource: "node_modules/**"
+    effect: deny
+  - action: edit
+    resource: ".git/**"
+    effect: deny
+  - action: subagent
+    resource: "subagents/core/contextscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/core/externalscout"
+    effect: allow
+  - action: subagent
+    resource: "subagents/code/test-engineer"
+    effect: allow
+request:
+  body:
+    temperature: 0 # v2.0.24 preserves request.body but does not send it to the model yet
 ---
 
 # CoderAgent
