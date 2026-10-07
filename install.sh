@@ -794,7 +794,8 @@ show_custom_menu() {
     
     local _cat_input
     read -r -p "Enter category numbers (space-separated) or option: " _cat_input
-    local selections=($_cat_input)
+    local -a selections=()
+    read -r -a selections <<< "$_cat_input"
     
     for sel in "${selections[@]}"; do
         if [[ ! "$sel" =~ ^[0-9]+$ ]]; then
@@ -874,7 +875,8 @@ show_component_selection() {
     echo "Enter component numbers (space-separated), 'all' for all, or 'done' to continue:"
     local _comp_input
     read -r _comp_input
-    local selections=($_comp_input)
+    local -a selections=()
+    read -r -a selections <<< "$_comp_input"
     
     for sel in "${selections[@]}"; do
         if [ "$sel" = "all" ]; then
