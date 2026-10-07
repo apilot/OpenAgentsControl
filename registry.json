@@ -98,7 +98,7 @@
         "dependencies": [
           "subagent:documentation",
           "subagent:coder-agent",
-          "subagent:tester",
+          "subagent:test-engineer",
           "subagent:reviewer",
           "subagent:build-agent",
           "subagent:contextscout",
@@ -182,11 +182,14 @@
         "category": "standard"
       },
       {
-        "id": "tester",
+        "id": "test-engineer",
         "name": "TestEngineer",
         "type": "subagent",
         "path": ".opencode/agent/subagents/code/test-engineer.md",
-        "description": "Writes unit and integration tests",
+        "description": "Test authoring and TDD agent",
+        "aliases": [
+          "tester"
+        ],
         "tags": [
           "testing",
           "tdd",
@@ -335,7 +338,7 @@
         "type": "subagent",
         "path": ".opencode/agent/subagents/core/contextscout.md",
         "version": "5.1.0",
-        "description": "Get accurate context FIRST before diving deep\u2014save time, energy, and avoid rework. ContextScout intelligently discovers and retrieves the exact context files you need with precise file paths and line ranges, so you start with the right information instead of guessing. Optimized for multi-model compatibility (Claude, Gemini, GPT-4) with 20% token reduction.",
+        "description": "Get accurate context FIRST before diving deep—save time, energy, and avoid rework. ContextScout intelligently discovers and retrieves the exact context files you need with precise file paths and line ranges, so you start with the right information instead of guessing. Optimized for multi-model compatibility (Claude, Gemini, GPT-4) with 20% token reduction.",
         "tags": [
           "context",
           "search",
@@ -418,6 +421,104 @@
         ],
         "dependencies": [],
         "category": "core"
+      },
+      {
+        "id": "batch-executor",
+        "name": "BatchExecutor",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/core/batch-executor.md",
+        "description": "Execute multiple tasks in parallel batches, managing simultaneous CoderAgent delegations and tracking batch completion",
+        "tags": [
+          "parallelism",
+          "delegation",
+          "batch"
+        ],
+        "dependencies": [],
+        "category": "core"
+      },
+      {
+        "id": "stage-orchestrator",
+        "name": "StageOrchestrator",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/core/stage-orchestrator.md",
+        "description": "Multi-stage workflow orchestrator managing stage transitions, gating rules, validation, and rollback for complex feature development",
+        "tags": [
+          "orchestration",
+          "stages",
+          "workflow"
+        ],
+        "dependencies": [],
+        "category": "core"
+      },
+      {
+        "id": "adr-manager",
+        "name": "AdrManager",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/planning/adr-manager.md",
+        "description": "Architecture Decision Record specialist capturing decisions, context, alternatives, and consequences in lightweight ADR format",
+        "tags": [
+          "adr",
+          "architecture",
+          "decisions"
+        ],
+        "dependencies": [],
+        "category": "planning"
+      },
+      {
+        "id": "architecture-analyzer",
+        "name": "ArchitectureAnalyzer",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/planning/architecture-analyzer.md",
+        "description": "DDD-driven architecture analyzer identifying bounded contexts, module boundaries, and domain relationships for multi-stage orchestration",
+        "tags": [
+          "ddd",
+          "architecture",
+          "analysis"
+        ],
+        "dependencies": [],
+        "category": "planning"
+      },
+      {
+        "id": "contract-manager",
+        "name": "ContractManager",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/planning/contract-manager.md",
+        "description": "API contract management specialist enabling parallel development through contract-first design with OpenAPI/Swagger support",
+        "tags": [
+          "api",
+          "openapi",
+          "contracts"
+        ],
+        "dependencies": [],
+        "category": "planning"
+      },
+      {
+        "id": "prioritization-engine",
+        "name": "PrioritizationEngine",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/planning/prioritization-engine.md",
+        "description": "Scores and prioritizes backlog items using RICE/WSJF frameworks with MVP/post-MVP release slicing",
+        "tags": [
+          "backlog",
+          "rice",
+          "wsjf"
+        ],
+        "dependencies": [],
+        "category": "planning"
+      },
+      {
+        "id": "story-mapper",
+        "name": "StoryMapper",
+        "type": "subagent",
+        "path": ".opencode/agent/subagents/planning/story-mapper.md",
+        "description": "User journey mapping specialist transforming user needs into epics, stories, and vertical slices with bounded context alignment",
+        "tags": [
+          "user-journey",
+          "epics",
+          "stories"
+        ],
+        "dependencies": [],
+        "category": "planning"
       }
     ],
     "commands": [
@@ -3224,7 +3325,7 @@
         "subagent:documentation",
         "subagent:coder-agent",
         "subagent:reviewer",
-        "subagent:tester",
+        "subagent:test-engineer",
         "subagent:build-agent",
         "subagent:contextscout",
         "skill:task-management",
@@ -3307,7 +3408,7 @@
         "subagent:documentation",
         "subagent:coder-agent",
         "subagent:reviewer",
-        "subagent:tester",
+        "subagent:test-engineer",
         "subagent:build-agent",
         "subagent:contextscout",
         "skill:task-management",
@@ -3366,7 +3467,7 @@
         "subagent:documentation",
         "subagent:coder-agent",
         "subagent:reviewer",
-        "subagent:tester",
+        "subagent:test-engineer",
         "subagent:build-agent",
         "subagent:image-specialist",
         "subagent:context-retriever",

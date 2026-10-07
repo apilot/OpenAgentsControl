@@ -54,7 +54,7 @@ description: "Expert in REST and GraphQL API design"
 category: "development"
 type: "agent"
 tags: ["api", "rest", "graphql"]
-dependencies: ["subagent:tester"]
+dependencies: ["subagent:test-engineer"]
 ---
 
 # API Specialist

@@ -38,7 +38,7 @@
         "subagent:task-manager",
         "subagent:batch-executor",
         "subagent:coder-agent",
-        "subagent:tester",
+        "subagent:test-engineer",
         "subagent:reviewer",
         "subagent:build-agent",
         "subagent:contextscout",
@@ -62,7 +62,7 @@
         "subagent:contextscout",
         "subagent:documentation",
         "subagent:coder-agent",
-        "subagent:tester",
+        "subagent:test-engineer",
         "subagent:reviewer",
         "subagent:build-agent"
       ]
@@ -218,8 +218,8 @@
         "context:standards-code"
       ]
     },
-    "tester": {
-      "id": "tester",
+    "test-engineer": {
+      "id": "test-engineer",
       "name": "TestEngineer",
       "category": "subagents/code",
       "type": "subagent",
@@ -343,6 +343,66 @@
       "version": "1.0.0",
       "author": "opencode",
       "tags": ["testing", "evaluation"],
+      "dependencies": []
+    },
+    "stage-orchestrator": {
+      "id": "stage-orchestrator",
+      "name": "StageOrchestrator",
+      "category": "subagents/core",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["orchestration", "stages", "workflow"],
+      "dependencies": []
+    },
+    "adr-manager": {
+      "id": "adr-manager",
+      "name": "AdrManager",
+      "category": "subagents/planning",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["adr", "architecture", "decisions"],
+      "dependencies": []
+    },
+    "architecture-analyzer": {
+      "id": "architecture-analyzer",
+      "name": "ArchitectureAnalyzer",
+      "category": "subagents/planning",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["ddd", "architecture", "analysis"],
+      "dependencies": []
+    },
+    "contract-manager": {
+      "id": "contract-manager",
+      "name": "ContractManager",
+      "category": "subagents/planning",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["api", "openapi", "contracts"],
+      "dependencies": []
+    },
+    "prioritization-engine": {
+      "id": "prioritization-engine",
+      "name": "PrioritizationEngine",
+      "category": "subagents/planning",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["backlog", "rice", "wsjf"],
+      "dependencies": []
+    },
+    "story-mapper": {
+      "id": "story-mapper",
+      "name": "StoryMapper",
+      "category": "subagents/planning",
+      "type": "subagent",
+      "version": "1.0.0",
+      "author": "opencode",
+      "tags": ["user-journey", "epics", "stories"],
       "dependencies": []
     }
   },

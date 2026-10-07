@@ -63,7 +63,7 @@ description: Multi-language implementation agent
 dependencies:
   - subagent:task-manager      # Can delegate to task-manager
   - subagent:coder-agent        # Can delegate to coder-agent
-  - subagent:tester             # Can delegate to tester
+  - subagent:test-engineer             # Can delegate to tester
   - context:core/standards/code # Requires code standards context
 ```
 

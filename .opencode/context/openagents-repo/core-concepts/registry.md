@@ -54,7 +54,7 @@ The registry is a centralized catalog (`registry.json`) that tracks all componen
   "description": "Expert in React, Vue, and modern CSS",
   "category": "development",
   "tags": ["react", "vue", "css", "frontend"],
-  "dependencies": ["subagent:tester"],
+  "dependencies": ["subagent:test-engineer"],
   "version": "0.5.0"
 }
 ```
@@ -303,7 +303,7 @@ REGISTRY_URL="file://$(pwd)/registry.json" ./install.sh developer
 
 ```json
 "dependencies": [
-  "subagent:tester",
+  "subagent:test-engineer",
   "context:core/standards/code"
 ]
 ```
@@ -322,13 +322,13 @@ REGISTRY_URL="file://$(pwd)/registry.json" ./install.sh developer
 ```
 User installs: frontend-specialist
   ↓
-Depends on: subagent:tester
+Depends on: subagent:test-engineer
   ↓
 Depends on: context:core/standards/tests
   ↓
 Install order:
   1. context:core/standards/tests
-  2. subagent:tester
+  2. subagent:test-engineer
   3. frontend-specialist
 ```
 

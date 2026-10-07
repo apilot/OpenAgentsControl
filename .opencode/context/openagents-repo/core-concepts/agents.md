@@ -25,7 +25,7 @@ description: "Brief description of what this agent does"
 category: "category-name"
 type: "agent"
 tags: ["tag1", "tag2"]
-dependencies: ["subagent:tester"]
+dependencies: ["subagent:test-engineer"]
 ---
 
 # Agent Name
@@ -311,7 +311,7 @@ description: "Required - brief description"
 category: "Required - category name"
 type: "Required - always 'agent'"
 tags: ["Optional - for discovery"]
-dependencies: ["Optional - e.g., 'subagent:tester'"]
+dependencies: ["Optional - e.g., 'subagent:test-engineer'"]
 ---
 ```
 

@@ -16,7 +16,7 @@
     "subagent:documentation",
     "subagent:coder-agent",
     "subagent:reviewer",
-    "subagent:tester",
+    "subagent:test-engineer",
     "subagent:build-agent",
     "subagent:image-specialist",
     "subagent:context-retriever",
